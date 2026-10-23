@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Application d'échecs de l'AS Échecs Saint-André : jouer contre des bots, problèmes et cours. Sans compte, sans cookie, sans sauvegarde.">
+  <meta name="referrer" content="no-referrer">
+  <!-- RGPD : le site ne peut charger AUCUNE ressource externe (pas de CDN, pas de police Google, pas de traceur). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; worker-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b1120" media="(prefers-color-scheme: dark)">
+  <title>L’Échiquier de Saint-André</title>
+  <link rel="icon" href="assets/pieces/wN.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icone-apple-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Échiquier">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="brand">
+      <span class="brand-logo"><img src="assets/pieces/wN.svg" alt=""></span>
+      <span class="brand-text">
+        <strong data-app-nom>L’Échiquier de Saint-André</strong>
+        <small data-app-sous-titre>AS Échecs</small>
+      </span>
+    </a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="#/pas-a-pas">Pas à pas</a>
+      <a href="#/cours">Cours</a>
+      <a href="#/bots">Jouer</a>
+      <a href="#/deux">À deux</a>
+      <a href="#/problemes">Problèmes</a>
+      <a href="#/analyse">Analyse</a>
+      <a href="#/succes" class="trophee" aria-label="Hauts faits" title="Hauts faits">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v5a5 5 0 0 1-10 0z"/><rect x="10.8" y="12.5" width="2.4" height="4"/><rect x="7.5" y="16.5" width="9" height="3" rx="1"/><path d="M7 5H4.5a2.5 2.5 0 0 0 2.6 4M17 5h2.5a2.5 2.5 0 0 1-2.6 4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span data-nb-succes>0</span>
+      </a>
+    </nav>
+  </header>
+
+  <main id="app"></main>
+
+  <footer class="footer">
+    <button type="button" class="link" id="btn-installer">📲 Installer l’application</button>
+    <span aria-hidden="true">·</span>
+    <span id="hors-ligne" hidden>✓ Fonctionne hors ligne</span>
+    <span aria-hidden="true" id="hors-ligne-sep" hidden>·</span>
+    <button type="button" class="link" id="btn-confidentialite">Confidentialité</button>
+    <span aria-hidden="true">·</span>
+    <span>Logiciel libre (GPL-3) · moteur Stockfish</span>
+    <span aria-hidden="true">·</span>
+    <button type="button" class="link" id="btn-version" title="Voir les nouveautés">v…</button>
+  </footer>
+
+  <dialog id="modal"></dialog>
+
+  <noscript><p class="noscript">Cette application a besoin de JavaScript pour fonctionner.</p></noscript>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "L’Échiquier de Saint-André",
+  "short_name": "Échiquier",
+  "description": "Application d’échecs de l’AS Échecs Saint-André : règles, cours, bots, problèmes et analyse. Sans compte, fonctionne hors ligne.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1120",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "assets/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icone-masquable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
