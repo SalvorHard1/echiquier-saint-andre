@@ -3,7 +3,7 @@
 //
 // VERSION : le même numéro que dans js/version.js. Le changer à chaque mise en ligne renouvelle la copie
 // sur les appareils des élèves. Un fichier ajouté au site doit aussi être ajouté à FICHIERS.
-const VERSION = '0.10';
+const VERSION = '0.12';
 const CACHE = `echiquier-${VERSION}`;
 
 const FICHIERS = [
@@ -13,7 +13,8 @@ const FICHIERS = [
   'css/style.css',
   'js/analyse.js', 'js/app.js', 'js/board.js', 'js/bots.js', 'js/cadences.js', 'js/config.js',
   'js/cours-data.js', 'js/cours.js', 'js/defi.js', 'js/engine.js', 'js/lecons-data.js', 'js/lecons.js',
-  'js/modal.js', 'js/problemes.js', 'js/succes.js', 'js/version.js',
+  'js/modal.js', 'js/plateaux.js', 'js/problemes.js', 'js/skins.js', 'js/succes.js', 'js/version.js',
+  'js/position.js', 'js/prof.js', 'js/qr.js', 'js/tournoi.js', 'js/vigilance.js',
   'vendor/chess/chess.js',
   'vendor/stockfish/stockfish-17.1-lite-single-03e3232.js',
   'vendor/stockfish/stockfish-17.1-lite-single-03e3232.wasm',

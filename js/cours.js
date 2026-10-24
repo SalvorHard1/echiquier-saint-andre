@@ -1,6 +1,7 @@
 // « Cours » : progresser après les règles (ouvertures, tactiques, mats types, finales contre Stockfish, stratégie).
 import { Chess } from '../vendor/chess/chess.js';
 import { Board, pieceSrc } from './board.js';
+import { piecePlateau } from './skins.js';
 import { obtenirMoteur } from './engine.js';
 import { CHAPITRES_COURS, COURS, NIVEAUX_COURS, etoilesMaxCours } from './cours-data.js';
 import { signaler, etoilesCours } from './succes.js';
@@ -295,7 +296,7 @@ export function showLeconCours($app, id) {
     const r = await modal({
       titre: 'Promotion !',
       html: `<p>En quelle pièce ton pion se transforme-t-il ?</p>
-        <div class="promo">${['q', 'r', 'b', 'n'].map((t) => `<button class="promo-btn" value="${t}"><img src="${pieceSrc(couleurJoueur, t)}" alt="${NOMS_PIECES[t]}"></button>`).join('')}</div>`,
+        <div class="promo">${['q', 'r', 'b', 'n'].map((t) => `<button class="promo-btn" value="${t}"><img src="${piecePlateau(couleurJoueur, t)}" alt="${NOMS_PIECES[t]}"></button>`).join('')}</div>`,
     });
     return ['q', 'r', 'b', 'n'].includes(r) ? r : null;
   }

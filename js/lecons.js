@@ -1,6 +1,7 @@
 // Parcours « Pas à pas » : apprendre les règles en jouant.
 import { Chess } from '../vendor/chess/chess.js';
 import { Board, pieceSrc } from './board.js';
+import { piecePlateau } from './skins.js';
 import { CHAPITRES, LECONS, etoilesMax } from './lecons-data.js';
 import { signaler, etoilesLecon } from './succes.js';
 import { confettis } from './problemes.js';
@@ -321,7 +322,7 @@ export function showLecon($app, id) {
     const r = await modal({
       titre: 'Promotion !',
       html: `<p>En quelle pièce ton pion se transforme-t-il ?</p>
-        <div class="promo">${['q', 'r', 'b', 'n'].map((t) => `<button class="promo-btn" value="${t}"><img src="${pieceSrc('w', t)}" alt="${NOMS_PIECES[t]}"></button>`).join('')}</div>`,
+        <div class="promo">${['q', 'r', 'b', 'n'].map((t) => `<button class="promo-btn" value="${t}"><img src="${piecePlateau('w', t)}" alt="${NOMS_PIECES[t]}"></button>`).join('')}</div>`,
     });
     return ['q', 'r', 'b', 'n'].includes(r) ? r : null;
   }

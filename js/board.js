@@ -1,6 +1,8 @@
 // Plateau interactif : clic-clic ou glisser-déposer, à la souris comme au doigt.
 // Dessins (comme sur chess.com) : clic droit + glisser = flèche, clic droit sur une case = surligner,
 // au doigt : appui long + glisser. Clic gauche (ou toucher bref) = tout effacer.
+import { piecePlateau } from './skins.js';
+
 const FILES = 'abcdefgh';
 const APPUI_LONG = 450; // ms
 
@@ -12,6 +14,7 @@ export const COULEURS_DESSIN = {
 };
 const COULEUR_MOTEUR = '#16a34a';
 
+// Icônes et avatars : toujours les pièces classiques. Sur l'échiquier, piecePlateau suit le skin choisi.
 export function pieceSrc(color, type) {
   return `assets/pieces/${color}${type.toUpperCase()}.svg`;
 }
@@ -188,7 +191,7 @@ export class Board {
         if (marques.has(sq)) html += `<span class="marque" style="background:${COULEURS_DESSIN[marques.get(sq)]}"></span>`;
         if (col === 0) html += `<span class="coord rank">${8 - r}</span>`;
         if (row === 7) html += `<span class="coord file">${FILES[f]}</span>`;
-        if (piece) html += `<img class="piece" src="${pieceSrc(piece.color, piece.type)}" alt="" draggable="false">`;
+        if (piece) html += `<img class="piece" src="${piecePlateau(piece.color, piece.type)}" alt="" draggable="false">`;
         for (const m of this.state.marqueurs) if (m.sq === sq) html += `<span class="marqueur">${m.html}</span>`;
         if (badge?.sq === sq) html += `<span class="badge-case">${badge.html}</span>`;
         html += '</div>';
@@ -294,7 +297,7 @@ export class Board {
       const size = this.el.getBoundingClientRect().width / 8;
       this.ghost = document.createElement('img');
       this.ghost.className = 'piece-ghost';
-      this.ghost.src = pieceSrc(piece.color, piece.type);
+      this.ghost.src = piecePlateau(piece.color, piece.type);
       this.ghost.style.width = this.ghost.style.height = `${size}px`;
       document.body.appendChild(this.ghost);
       this.render();

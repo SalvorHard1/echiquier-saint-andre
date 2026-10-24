@@ -73,6 +73,48 @@ function lirePgn(texte) {
   return { coups, entetes };
 }
 
+// Précision rapide du camp « Élève » d'une partie de l'application (espace Prof-AS, anti-triche).
+// Moins profonde que l'analyse complète : environ 0,3 s par position.
+// Renvoie { precision, parfaits } (parfaits : % de coups qui ne perdent presque rien) ou null.
+export async function precisionPartie(pgn, { depth = 12, movetime = 300, actif = () => true, onProgres } = {}) {
+  const p = lirePgn(pgn);
+  if (!p) return null;
+  const camp = p.entetes.White === 'Élève' ? 'w' : p.entetes.Black === 'Élève' ? 'b' : null;
+  if (!camp) return null;
+  const chess = new Chess();
+  const fens = [chess.fen()];
+  for (const m of p.coups) {
+    chess.move(m.san);
+    fens.push(chess.fen());
+  }
+  const moteur = obtenirMoteur();
+  const evals = [];
+  for (let i = 0; i < fens.length; i++) {
+    if (!actif()) return null;
+    const pos = new Chess(fens[i]);
+    if (pos.isCheckmate()) evals[i] = { gagnant: pos.turn() === 'w' ? 'b' : 'w' };
+    else if (pos.isStalemate() || pos.isInsufficientMaterial()) evals[i] = { cp: 0 };
+    else {
+      const { score } = await moteur.analyse(fens[i], { depth, movetime });
+      const signe = pos.turn() === 'w' ? 1 : -1;
+      evals[i] = !score ? { cp: 0 } : score.type === 'mate' ? { mate: signe * score.value } : { cp: signe * score.value };
+    }
+    onProgres?.((i + 1) / fens.length);
+  }
+  const pertes = p.coups.map((m, i) => {
+    if (m.color !== camp) return null;
+    let avant = chancesBlancs(evals[i]);
+    let apres = chancesBlancs(evals[i + 1]);
+    if (camp === 'b') { avant = 100 - avant; apres = 100 - apres; }
+    return Math.max(0, avant - apres);
+  }).filter((x) => x !== null);
+  if (pertes.length < 5) return null;
+  return {
+    precision: pertes.map(precisionCoup).reduce((a, b) => a + b, 0) / pertes.length,
+    parfaits: (pertes.filter((x) => x <= 1).length / pertes.length) * 100,
+  };
+}
+
 const EXEMPLE = `[Event "Opéra de Paris"]
 [Date "1858.??.??"]
 [White "Paul Morphy"]

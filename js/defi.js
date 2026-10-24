@@ -3,6 +3,7 @@
 import { Board, pieceSrc, monterBarreDessin } from './board.js';
 import { NIVEAUX, charger, lancerProbleme, nomsThemes, matEn, confettis } from './problemes.js';
 import { signaler, resultatDefi, serieDefis } from './succes.js';
+import { surveiller, alerteTriche } from './vigilance.js';
 
 // Niveau du défi selon le jour (getDay : 0 = dimanche) : facile le lundi, coriace le dimanche.
 const NIVEAU_JOUR = [4, 0, 1, 1, 2, 2, 3];
@@ -135,11 +136,37 @@ export function showDefi($app) {
     majSemaine();
   }
 
+  // Anti-triche : quitter la page pendant le premier essai (pour chercher la solution ailleurs) le fait rater.
+  // Page cachée (autre onglet, onglet fermé…) : raté tout de suite, pour qu'un rechargement n'y change rien.
+  // Autre fenêtre : raté au retour, si la sortie a duré.
+  let sortie = false;
+  function quitter() {
+    if (compte) return;
+    sortie = true;
+    enregistrer(false);
+    signaler('alerte', { genre: 'defi', texte: `Défi du ${jourLong} compté comme raté : page quittée pendant l’essai.` });
+    statut('<strong>Défi raté pour aujourd’hui</strong><br><small>Tu as quitté la page pendant ton essai. Cherche quand même la solution !</small>', 'rate');
+  }
+  const vigil = surveiller({
+    enJeu: () => actif && !!probleme && (!compte || sortie),
+    monTour: () => true,
+    onCache: quitter,
+    onRetour: () => {
+      quitter();
+      if (!sortie) return;
+      sortie = false;
+      alerteTriche({
+        texte: 'Tu as quitté la page pendant le défi du jour (autre onglet, autre fenêtre ou autre appli).',
+        consequence: 'Le défi d’aujourd’hui compte comme raté. Reviens demain !',
+      });
+    },
+  });
+
   function etat(e, info = {}) {
     if (!actif) return;
     const couleur = ctrl.joueur === 'w' ? 'Blancs' : 'Noirs';
     const mat = matEn(probleme);
-    if (e === 'tour' || e === 'reessaie') statut(`<strong>${e === 'tour' ? `Aux ${couleur} de jouer` : 'À toi, réessaie !'}</strong>${mat ? ` · mat en ${mat}` : ''}<br><small>${dejaJoue ? `Défi déjà ${resultatDefi(date) ? 'réussi ✓' : 'tenté'} aujourd’hui : cet essai ne compte pas.` :'Réfléchis bien avant de jouer : une seule chance !'}</small>`, 'tour');
+    if (e === 'tour' || e === 'reessaie') statut(`<strong>${e === 'tour' ? `Aux ${couleur} de jouer` : 'À toi, réessaie !'}</strong>${mat ? ` · mat en ${mat}` : ''}<br><small>${dejaJoue ? `Défi déjà ${resultatDefi(date) ? 'réussi ✓' : 'tenté'} aujourd’hui : cet essai ne compte pas.` :'Réfléchis bien avant de jouer : une seule chance ! Ne quitte pas la page, sinon le défi compte comme raté.'}</small>`, 'tour');
     if (e === 'bon') statut('<strong>Bon coup !</strong> Continue…', 'bon');
     if (e === 'rate') {
       if (info.premiere && !compte) {
@@ -197,6 +224,7 @@ export function showDefi($app) {
 
   return () => {
     actif = false;
+    vigil.detruire();
     clearInterval(minuterie);
     ctrl?.detruire();
     board.destroy();

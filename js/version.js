@@ -1,8 +1,25 @@
 // Numéro de version de l'application et journal des nouveautés.
 // À chaque mise en ligne : augmenter VERSION ici, mettre le MÊME numéro dans sw.js, et ajouter une entrée en tête de NOUVEAUTES.
-export const VERSION = '0.10';
+export const VERSION = '0.12';
 
 export const NOUVEAUTES = [
+  {
+    version: '0.12', date: '2026-10-24',
+    changements: [
+      'Anti-triche : sauvegarde protégée, alertes et journal de contrôle',
+      'Victoires non homologuées si on quitte la partie pendant son tour',
+      'Défi du jour raté si on quitte la page pendant l’essai',
+      'Espace Prof-AS : L’Œil de Caïssa, pourcentage de triche et analyse des parties',
+    ],
+  },
+  {
+    version: '0.11', date: '2026-10-24',
+    changements: [
+      'Nouveaux rangs : Fer, Bronze, Argent, Or, Platine, Émeraude, Diamant, Master, Grand Master… et Challenger.',
+      'Plateaux à débloquer : 17 skins, avec 10 styles de pièces, gagnés par le rang ou par des hauts faits difficiles.',
+      'Les hauts faits s’appellent maintenant Commun, Rare, Épique et Mythique.',
+    ],
+  },
   {
     version: '0.10', date: '2026-10-23',
     changements: [

@@ -19,8 +19,11 @@ $types = @{
   '.md'   = 'text/plain; charset=utf-8'
 }
 
+# Toujours le port 8080 : le navigateur range la progression (hauts faits) par adresse, port compris.
+# Changer de port donnerait une sauvegarde vide. Seul l'aperçu de Claude (SANS_NAVIGATEUR) peut en prendre un autre.
+$ports = if ($env:SANS_NAVIGATEUR) { 8080..8099 } else { @(8080) }
 $serveur = $null
-foreach ($p in 8080..8099) {
+foreach ($p in $ports) {
   try {
     $l = New-Object System.Net.HttpListener
     $l.Prefixes.Add("http://localhost:$p/")
@@ -31,7 +34,23 @@ foreach ($p in 8080..8099) {
   } catch { }
 }
 if (-not $serveur) {
-  Write-Host "Impossible de démarrer le serveur (ports 8080 à 8099 occupés)." -ForegroundColor Red
+  Write-Host ""
+  # Le port 8080 est pris : est-ce déjà l'application, ou un autre programme ?
+  $dejaOuverte = $false
+  try {
+    $rep = Invoke-WebRequest -Uri 'http://localhost:8080/manifest.webmanifest' -UseBasicParsing -TimeoutSec 3
+    $dejaOuverte = [Text.Encoding]::UTF8.GetString($rep.RawContentStream.ToArray()) -match 'Saint-Andr'
+  } catch { }
+  if ($dejaOuverte) {
+    Write-Host "  L'application tourne déjà dans une autre fenêtre noire." -ForegroundColor Yellow
+    Write-Host "  Le navigateur s'ouvre sur http://localhost:8080/ (ta progression y est)."
+    Write-Host "  Pour la relancer : ferme d'abord l'autre fenêtre noire."
+    if (-not $env:SANS_NAVIGATEUR) { Start-Process 'http://localhost:8080/' }
+  } else {
+    Write-Host "  Le port 8080 est utilisé par un autre programme." -ForegroundColor Red
+    Write-Host "  Ferme ce programme puis relance Lancer.bat."
+  }
+  Write-Host ""
   exit 1
 }
 

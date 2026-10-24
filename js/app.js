@@ -7,11 +7,17 @@ import { APP } from './config.js';
 import { modal, fermerModal } from './modal.js';
 import { showProblemes, showEntrainement, showCourse } from './problemes.js';
 import { signaler, showSucces, majCompteur } from './succes.js';
+import { showPlateaux } from './plateaux.js';
+import { piecePlateau } from './skins.js';
 import { showPasAPas, showLecon } from './lecons.js';
 import { showCours, showLeconCours } from './cours.js';
 import { showDefi, carteDefi } from './defi.js';
 import { VERSION, NOUVEAUTES } from './version.js';
+import { gardeProf, showProf, showProjection, showDossier } from './prof.js';
+import { showTournoi } from './tournoi.js';
+import { showPosition, fenValide } from './position.js';
 import { parseCadence, selecteurCadence, libelle, icone, formatTemps } from './cadences.js';
+import { surveiller, verdict, alerteTriche, bandeau, SEUILS, BOTS_STRICTS } from './vigilance.js';
 
 // Les parties vivent en mémoire et disparaissent à la fermeture de l'onglet.
 // Seuls les hauts faits sont gardés, dans le navigateur de l'élève (voir succes.js).
@@ -22,7 +28,7 @@ let partieAAnalyser = null; // PGN transmis de la partie à l'analyse (en mémoi
 const choix = { bot: 'cavalier', couleur: 'w', cadence: 'aucune', cadenceDeux: '5-0' };
 
 const VALEURS = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-const DEPART = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+const CLE_PARTIE = 'echiquier-saint-andre:partie-en-cours';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 document.querySelectorAll('[data-app-nom]').forEach((el) => (el.textContent = APP.nom));
@@ -55,6 +61,9 @@ function route() {
     case '/succes':
       cleanup = showSucces($app);
       return;
+    case '/plateaux':
+      cleanup = showPlateaux($app);
+      return;
     case '/pas-a-pas':
       cleanup = showPasAPas($app);
       return;
@@ -76,17 +85,37 @@ function route() {
     case '/problemes/course':
       cleanup = showCourse($app);
       return;
+    case '/prof':
+      cleanup = gardeProf($app, () => showProf($app));
+      return;
+    case '/prof/projection':
+      cleanup = gardeProf($app, () => showProjection($app, { edition: params.get('edition') === '1' }));
+      return;
+    case '/prof/tournoi':
+      cleanup = gardeProf($app, () => showTournoi($app));
+      return;
+    case '/prof/dossier':
+      cleanup = gardeProf($app, () => showDossier($app, {
+        analyser: (pgn) => {
+          partieAAnalyser = pgn;
+          location.hash = '#/analyse';
+        },
+      }));
+      return;
+    case '/position':
+      cleanup = showPosition($app, params.get('fen'));
+      return;
     case '/bots':
       return showBots();
     case '/jouer': {
       const bot = BOTS.find((b) => b.id === params.get('bot')) || BOTS[0];
       const couleur = ['w', 'b', 'hasard'].includes(params.get('couleur')) ? params.get('couleur') : 'w';
-      return showGame({ mode: 'bot', bot, couleur, cadence: parseCadence(params.get('t')) });
+      return showGame({ mode: 'bot', bot, couleur, cadence: parseCadence(params.get('t')), fen: fenValide(params.get('fen')) });
     }
     case '/deux':
       return showDeuxSetup();
     case '/deux/jouer':
-      return showGame({ mode: 'deux', cadence: parseCadence(params.get('t')) });
+      return showGame({ mode: 'deux', cadence: parseCadence(params.get('t')), fen: fenValide(params.get('fen')) });
     default:
       return showHome();
   }
@@ -103,7 +132,9 @@ document.getElementById('btn-confidentialite').addEventListener('click', () => {
         <li><strong>Aucun compte</strong>, aucune inscription, aucun nom demandé.</li>
         <li><strong>Rien n'est envoyé sur Internet</strong> : aucune partie, aucun résultat ne quitte ton appareil.</li>
         <li><strong>Seuls tes hauts faits</strong> (les étoiles de « Pas à pas » et des « Cours », les résultats du défi du jour) sont enregistrés, dans le stockage local de ton navigateur, sur cet appareil uniquement. Tu peux les exporter ou tout effacer depuis la page <a href="#/succes">Hauts faits</a>.</li>
-        <li>Les parties, analyses et problèmes en cours ne sont pas sauvegardés : fermer l'onglet les efface.</li>
+        <li>Les parties, analyses et problèmes en cours ne sont pas sauvegardés : fermer l'onglet les efface. Seule une partie en cours est gardée le temps de l'onglet, pour ne pas la perdre si la page se recharge.</li>
+        <li>Le <strong>mode tournoi</strong> de l'espace Prof-AS garde les prénoms des élèves inscrits sur l'appareil du prof uniquement, jusqu'à ce qu'il efface le tournoi.</li>
+        <li>Une position partagée par QR code voyage dans le lien lui-même : elle ne passe par aucun serveur.</li>
         <li><strong>Aucun cookie</strong>, aucun traceur, aucune statistique de visite, aucune publicité.</li>
         <li><strong>Aucun service extérieur</strong> : le moteur d'échecs tourne directement sur ton appareil.</li>
         <li>Pour marcher <strong>hors ligne</strong>, le navigateur garde une copie des fichiers du site (pages, pièces, moteur, problèmes). Cette copie ne contient aucune donnée personnelle.</li>
@@ -128,6 +159,14 @@ function showHome() {
           <span class="card-icon" style="--c:#16a34a"><img src="${pieceSrc('w', 'p')}" alt=""></span>
           <span class="card-text"><strong>Pas à pas</strong><small>Débutant ? Apprends les règles en jouant : étoiles, défis et quiz.</small></span>
         </a>
+        <a class="card" href="#/cours">
+          <span class="card-icon" style="--c:#ea580c"><img src="${pieceSrc('w', 'b')}" alt=""></span>
+          <span class="card-text"><strong>Cours</strong><small>Ouvertures, tactiques, mats types, finales contre Stockfish.</small></span>
+        </a>
+        <a class="card" href="#/succes">
+          <span class="card-icon" style="--c:#d97706"><img src="${pieceSrc('w', 'p')}" alt=""></span>
+          <span class="card-text"><strong>Hauts faits</strong><small>Débloque des médailles, grimpe de Fer à Challenger et gagne de nouveaux plateaux.</small></span>
+        </a>
         <a class="card" href="#/bots">
           <span class="card-icon" style="--c:#2563eb"><img src="${pieceSrc('w', 'k')}" alt=""></span>
           <span class="card-text"><strong>Jouer contre un bot</strong><small>${BOTS.length} niveaux, du grand débutant à l'imbattable.</small></span>
@@ -136,21 +175,13 @@ function showHome() {
           <span class="card-icon" style="--c:#0d9488"><img src="${pieceSrc('w', 'n')}" alt=""></span>
           <span class="card-text"><strong>Partie à deux</strong><small>Sur le même écran, chacun son tour.</small></span>
         </a>
-        <a class="card" href="#/analyse">
-          <span class="card-icon" style="--c:#0891b2"><img src="${pieceSrc('w', 'r')}" alt=""></span>
-          <span class="card-text"><strong>Analyser une partie</strong><small>Colle ton PGN : chaque coup est corrigé par Stockfish.</small></span>
-        </a>
         <a class="card" href="#/problemes">
           <span class="card-icon" style="--c:#9333ea"><img src="${pieceSrc('w', 'q')}" alt=""></span>
           <span class="card-text"><strong>Problèmes</strong><small>Mats, fourchettes, clouages… 6 niveaux et une course contre la montre.</small></span>
         </a>
-        <a class="card" href="#/succes">
-          <span class="card-icon" style="--c:#d97706"><img src="${pieceSrc('w', 'p')}" alt=""></span>
-          <span class="card-text"><strong>Hauts faits</strong><small>Débloque des médailles et grimpe de Pion à Roi.</small></span>
-        </a>
-        <a class="card" href="#/cours">
-          <span class="card-icon" style="--c:#ea580c"><img src="${pieceSrc('w', 'b')}" alt=""></span>
-          <span class="card-text"><strong>Cours</strong><small>Ouvertures, tactiques, mats types, finales contre Stockfish.</small></span>
+        <a class="card" href="#/analyse">
+          <span class="card-icon" style="--c:#0891b2"><img src="${pieceSrc('w', 'r')}" alt=""></span>
+          <span class="card-text"><strong>Analyser une partie</strong><small>Colle ton PGN : chaque coup est corrigé par Stockfish.</small></span>
         </a>
       </div>
     </section>`;
@@ -159,7 +190,7 @@ function showHome() {
 /* ---------- Choix du bot ---------- */
 
 function avatar(bot, taille = '') {
-  return `<span class="avatar ${taille}" style="--c:${bot.couleur}"><img src="${pieceSrc('w', bot.piece)}" alt=""></span>`;
+  return `<span class="avatar ${taille}" style="--c:${bot.couleur}"><img src="${pieceSrc(bot.camp || 'w', bot.piece)}" alt=""></span>`;
 }
 
 function showBots() {
@@ -241,9 +272,13 @@ function showDeuxSetup() {
 
 /* ---------- Partie ---------- */
 
-function showGame({ mode, bot, couleur, cadence }) {
+// fen : position de départ (position partagée par un prof), sinon la position initiale.
+function showGame({ mode, bot, couleur, cadence, fen = null }) {
   const vsBot = mode === 'bot';
   const chess = new Chess();
+  // Pièces au départ, pour afficher les prises même quand la partie commence d'une position partagée.
+  const departs = { w: { p: 0, n: 0, b: 0, r: 0, q: 0 }, b: { p: 0, n: 0, b: 0, r: 0, q: 0 } };
+  for (const p of new Chess(fen || undefined).board().flat()) if (p && p.type !== 'k') departs[p.color][p.type]++;
   let joueur = 'w';
   let orientation = 'w';
   let generation = 0;
@@ -253,12 +288,22 @@ function showGame({ mode, bot, couleur, cadence }) {
   let moteurOk = true;
   let signalee = false; // la fin de partie a-t-elle déjà été comptée pour les hauts faits ?
   let pireRetard = 0; // plus gros retard de matériel de l'élève pendant la partie
+  let reprise = false; // l'élève a-t-il repris un coup contre le bot ? (la victoire ne compte alors pas)
+  // Anti-triche contre les bots : sorties de la page pendant le tour de l'élève et temps de chaque coup.
+  let tempsCoups = [];
+  let debutTour = null;
+  let suspect = null; // raison pour laquelle la victoire ne serait pas homologuée
 
   // Pendules (en ms). Comme sur chess.com, elles ne démarrent qu'après le premier coup de chaque camp.
   let temps = null;
   let tempsHist = [];
   let depuis = 0;
   let minuterie = null;
+  let tics = 0;
+
+  // La partie en cours est gardée dans sessionStorage : elle survit à un rechargement de la page,
+  // mais s'efface à la fermeture de l'onglet ou quand on quitte la partie.
+  const signature = `${mode}:${bot?.id || ''}:${cadence?.id || ''}:${fen || ''}`;
 
   $app.innerHTML = `
     <section class="game">
@@ -276,6 +321,7 @@ function showGame({ mode, bot, couleur, cadence }) {
         </div>
         <aside class="panel">
           <div class="status" id="status" aria-live="polite"></div>
+          <p class="vigilance" id="vigilance" role="alert" hidden></p>
           <ol class="moves" id="moves"></ol>
           <div class="actions">
             <button type="button" class="btn" id="btn-annuler">↶ Annuler</button>
@@ -294,6 +340,31 @@ function showGame({ mode, bot, couleur, cadence }) {
   const board = new Board($('#board'), { onMove: jouerCoupHumain });
   monterBarreDessin($('#dessin'), board);
 
+  const vigil = vsBot ? surveiller({ enJeu: () => !fin, monTour: () => chess.turn() === joueur, onRetour: retourPartie }) : null;
+  const seuils = vsBot && (BOTS_STRICTS.includes(bot.id) ? SEUILS.strict : SEUILS.normal);
+
+  function jugerPartie() {
+    return vigil ? verdict({ bot: bot.id, sorties: vigil.sorties, absence: vigil.absence, tempsCoups }) : null;
+  }
+
+  // L'élève revient sur la partie après l'avoir quittée pendant son tour.
+  function retourPartie({ sorties }) {
+    const avant = suspect;
+    suspect = jugerPartie();
+    const reste = seuils.sorties - sorties;
+    bandeau($('#vigilance'), suspect
+      ? `<b>Partie non homologuée</b> : ${suspect}. Une victoire ne comptera pas pour les hauts faits.`
+      : `Tu as quitté la partie pendant ton tour. Encore ${reste} sortie${reste > 1 ? 's' : ''} et ta victoire ne comptera pas.`);
+    if (suspect && !avant) {
+      signaler('alerte', { genre: 'sortie', texte: `Partie contre ${bot.nom} : ${suspect}.` });
+      alerteTriche({
+        texte: `Tu as quitté la partie pendant ton tour (autre onglet, autre fenêtre ou autre appli)${BOTS_STRICTS.includes(bot.id) ? `. Contre ${bot.nom}, une seule sortie suffit` : ''}.`,
+        consequence: 'Si tu gagnes cette partie, la victoire ne sera pas homologuée : elle comptera comme partie jouée, pas comme victoire.',
+      });
+    }
+    sauvegarder();
+  }
+
   function nomCamp(c) {
     if (vsBot) return c === joueur ? 'Toi' : bot.nom;
     return c === 'w' ? 'Blancs' : 'Noirs';
@@ -308,9 +379,9 @@ function showGame({ mode, bot, couleur, cadence }) {
       if (p.color !== c && p.type !== 'k') restants[p.type]++;
     }
     const adv = c === 'w' ? 'b' : 'w';
-    const prises = Object.keys(DEPART)
-      .flatMap((t) => Array(Math.max(0, DEPART[t] - restants[t])).fill(t))
-      .map((t) => `<img src="${pieceSrc(adv, t)}" alt="">`).join('');
+    const prises = Object.keys(restants)
+      .flatMap((t) => Array(Math.max(0, departs[adv][t] - restants[t])).fill(t))
+      .map((t) => `<img src="${piecePlateau(adv, t)}" alt="">`).join('');
     const diff = materiel[c] - materiel[adv];
     const actif = !fin && chess.turn() === c;
     const icone = vsBot && c !== joueur
@@ -345,6 +416,7 @@ function showGame({ mode, bot, couleur, cadence }) {
   }
 
   function tic() {
+    if (++tics % 10 === 0) sauvegarder();
     consommer();
     const c = chess.turn();
     if (pendulesActives() && temps[c] <= 0) {
@@ -393,9 +465,11 @@ function showGame({ mode, bot, couleur, cadence }) {
   }
 
   function compterPourHautsFaits() {
-    if (signalee || !chess.history().length) return;
+    // Une partie commencée d'une position partagée (parfois déjà gagnée) ne compte pas.
+    if (signalee || fen || !chess.history().length) return;
     signalee = true;
     const g = gagnant();
+    suspect = jugerPartie();
     signaler('partie', {
       mode,
       bot: bot?.id,
@@ -404,6 +478,11 @@ function showGame({ mode, bot, couleur, cadence }) {
       cadence: cadence?.groupe.id,
       coups: Math.ceil(chess.history().length / 2),
       pireRetard,
+      reprise,
+      suspect,
+      pgn: vsBot ? pgn() : null,
+      sorties: vigil?.sorties,
+      absence: vigil?.absence,
     });
   }
 
@@ -428,8 +507,10 @@ function showGame({ mode, bot, couleur, cadence }) {
     $('#status').classList.toggle('fin', !!fin);
 
     let li = '';
-    const coup = (j) => (hist[j] ? `<span${j === hist.length - 1 ? ' class="current"' : ''}>${hist[j].san}</span>` : '');
-    for (let i = 0; i < hist.length; i += 2) li += `<li>${coup(i)}${coup(i + 1)}</li>`;
+    // Partie commencée avec les Noirs au trait : la première case des Blancs reste vide (« 1. … »).
+    const decale = fen?.split(' ')[1] === 'b' ? 1 : 0;
+    const coup = (j) => (j < 0 ? '<span>…</span>' : hist[j] ? `<span${j === hist.length - 1 ? ' class="current"' : ''}>${hist[j].san}</span>` : '');
+    for (let i = hist.length ? -decale : 0; i < hist.length; i += 2) li += `<li>${coup(i)}${coup(i + 1)}</li>`;
     const $moves = $('#moves');
     $moves.innerHTML = li || '<li class="vide">Les coups apparaîtront ici.</li>';
     $moves.scrollTop = $moves.scrollHeight;
@@ -437,6 +518,25 @@ function showGame({ mode, bot, couleur, cadence }) {
     $('#btn-annuler').disabled = hist.length === 0;
     $('#btn-abandon').disabled = !!fin || hist.length === 0;
     majPendules();
+    sauvegarder();
+  }
+
+  function sauvegarder() {
+    try {
+      if (fin || !chess.history().length) return sessionStorage.removeItem(CLE_PARTIE);
+      // monTour : un rechargement de la page pendant le tour de l'élève compte comme une sortie.
+      const garde = vigil && { sorties: vigil.sorties, absence: vigil.absence, tempsCoups, monTour: chess.turn() === joueur };
+      sessionStorage.setItem(CLE_PARTIE, JSON.stringify({ signature, pgn: chess.pgn(), joueur, orientation, temps, tempsHist, pireRetard, reprise, garde }));
+    } catch { /* stockage indisponible : la partie reste en mémoire seulement */ }
+  }
+
+  function lireSauvegarde() {
+    try {
+      const s = JSON.parse(sessionStorage.getItem(CLE_PARTIE));
+      return s?.signature === signature ? s : null;
+    } catch {
+      return null;
+    }
   }
 
   function resultat() {
@@ -467,13 +567,19 @@ function showGame({ mode, bot, couleur, cadence }) {
     if (fin !== texte) return;
     const actions = [
       { id: 'rejouer', label: 'Rejouer', primaire: true },
+      ...(vsBot ? [{ id: 'revanche', label: `Revanche avec les ${joueur === 'w' ? 'Noirs' : 'Blancs'}` }] : []),
       { id: 'analyser', label: 'Analyser la partie' },
       { id: 'voir', label: 'Voir le plateau' },
     ];
     if (vsBot) actions.push({ id: 'bots', label: 'Changer de bot' });
-    const r = await modal({ titre: 'Partie terminée', html: `<p>${texte}</p>`, actions });
+    const gagne = vsBot && gagnant() === joueur;
+    let note = '';
+    if (gagne && reprise) note = '<p><small>Tu as repris des coups pendant la partie : cette victoire ne compte pas pour les hauts faits.</small></p>';
+    else if (gagne && suspect) note = `<p class="alerte-consequence">⚠ <b>Victoire non homologuée</b> : ${suspect}. Elle compte comme partie jouée, pas comme victoire. C’est noté dans ton journal de contrôle.</p>`;
+    const r = await modal({ titre: 'Partie terminée', html: `<p>${texte}</p>${note}`, actions });
     const choixFin = r === null ? null : actions[Number(r)]?.id;
     if (choixFin === 'rejouer') nouvellePartie();
+    if (choixFin === 'revanche') nouvellePartie(null, joueur === 'w' ? 'b' : 'w');
     if (choixFin === 'analyser') analyser();
     if (choixFin === 'bots') location.hash = '#/bots';
   }
@@ -483,7 +589,7 @@ function showGame({ mode, bot, couleur, cadence }) {
       titre: 'Promotion',
       html: `<p>Choisis ta nouvelle pièce :</p>
         <div class="promo">${['q', 'r', 'b', 'n'].map((t) =>
-          `<button class="promo-btn" value="${t}" aria-label="${{ q: 'Dame', r: 'Tour', b: 'Fou', n: 'Cavalier' }[t]}"><img src="${pieceSrc(c, t)}" alt=""></button>`).join('')}</div>`,
+          `<button class="promo-btn" value="${t}" aria-label="${{ q: 'Dame', r: 'Tour', b: 'Fou', n: 'Cavalier' }[t]}"><img src="${piecePlateau(c, t)}" alt=""></button>`).join('')}</div>`,
     });
     return ['q', 'r', 'b', 'n'].includes(r) ? r : null;
   }
@@ -497,6 +603,8 @@ function showGame({ mode, bot, couleur, cadence }) {
       if (!promotion) return maj();
     }
     if (fin) return maj();
+    if (vsBot && debutTour !== null) tempsCoups.push(Math.round(performance.now() - debutTour));
+    debutTour = null;
     jouer({ from, to, promotion });
     maj();
     if (!verifierFin() && vsBot) coupBot();
@@ -538,6 +646,7 @@ function showGame({ mode, bot, couleur, cadence }) {
     if (gen !== generation || fin) return;
     reflechit = false;
     if (uci) jouer({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+    debutTour = performance.now();
     maj();
     verifierFin();
   }
@@ -548,23 +657,39 @@ function showGame({ mode, bot, couleur, cadence }) {
     reflechit = false;
   }
 
-  function nouvellePartie() {
+  // s : partie sauvegardée à reprendre (après un rechargement de la page), sinon nouvelle partie.
+  // camp : couleur imposée à l'élève (revanche avec les couleurs inversées).
+  function nouvellePartie(s = null, camp = null) {
     interrompreBot();
     chess.reset();
     fin = null;
     signalee = false;
-    pireRetard = 0;
+    pireRetard = s?.pireRetard || 0;
+    reprise = !!s?.reprise;
     resultatForce = null;
-    joueur = vsBot ? (couleur === 'hasard' ? (Math.random() < 0.5 ? 'w' : 'b') : couleur) : 'w';
-    orientation = joueur;
-    chess.setHeader('Event', `${APP.nom} – ${APP.sousTitre}`);
-    chess.setHeader('Date', new Date().toISOString().slice(0, 10).replace(/-/g, '.'));
-    chess.setHeader('White', nomCamp('w') === 'Toi' ? 'Élève' : nomCamp('w'));
-    chess.setHeader('Black', nomCamp('b') === 'Toi' ? 'Élève' : nomCamp('b'));
-    chess.setHeader('TimeControl', cadence ? `${cadence.base / 1000}+${cadence.inc / 1000}` : '-');
+    tempsCoups = Array.isArray(s?.garde?.tempsCoups) ? s.garde.tempsCoups : [];
+    debutTour = performance.now();
+    vigil?.restaurer(s?.garde);
+    if (vigil && s?.garde?.monTour) vigil.ajouter();
+    suspect = jugerPartie();
+    if (vigil) bandeau($('#vigilance'), suspect ? `<b>Partie non homologuée</b> : ${suspect}. Une victoire ne comptera pas pour les hauts faits.` : '');
+    if (s) {
+      chess.loadPgn(s.pgn);
+      joueur = s.joueur;
+      orientation = s.orientation;
+    } else {
+      if (fen) chess.load(fen);
+      joueur = vsBot ? camp || (couleur === 'hasard' ? (Math.random() < 0.5 ? 'w' : 'b') : couleur) : 'w';
+      orientation = joueur;
+      chess.setHeader('Event', `${APP.nom} – ${APP.sousTitre}`);
+      chess.setHeader('Date', new Date().toISOString().slice(0, 10).replace(/-/g, '.'));
+      chess.setHeader('White', nomCamp('w') === 'Toi' ? 'Élève' : nomCamp('w'));
+      chess.setHeader('Black', nomCamp('b') === 'Toi' ? 'Élève' : nomCamp('b'));
+      chess.setHeader('TimeControl', cadence ? `${cadence.base / 1000}+${cadence.inc / 1000}` : '-');
+    }
     if (cadence) {
-      temps = { w: cadence.base, b: cadence.base };
-      tempsHist = [{ ...temps }];
+      temps = s?.temps ? { ...s.temps } : { w: cadence.base, b: cadence.base };
+      tempsHist = s?.tempsHist?.length ? s.tempsHist : [{ ...temps }];
       depuis = performance.now();
       clearInterval(minuterie);
       minuterie = setInterval(tic, 100);
@@ -573,7 +698,7 @@ function showGame({ mode, bot, couleur, cadence }) {
     if (vsBot) {
       engine = obtenirMoteur();
       engine.newGame().catch(() => { moteurOk = false; maj(); });
-      if (joueur === 'b') coupBot();
+      if (chess.turn() !== joueur) coupBot();
     }
   }
 
@@ -585,6 +710,7 @@ function showGame({ mode, bot, couleur, cadence }) {
       if (chess.undo() && cadence) tempsHist.pop();
     };
     if (vsBot) {
+      reprise = true;
       if (chess.turn() !== joueur) defaire();
       else { defaire(); defaire(); }
     } else {
@@ -595,6 +721,7 @@ function showGame({ mode, bot, couleur, cadence }) {
       temps = { ...tempsHist[tempsHist.length - 1] };
       depuis = performance.now();
     }
+    debutTour = performance.now();
     maj();
     if (vsBot && chess.turn() !== joueur) coupBot();
   }
@@ -618,7 +745,7 @@ function showGame({ mode, bot, couleur, cadence }) {
   $('#btn-analyser').addEventListener('click', analyser);
   $('#btn-annuler').addEventListener('click', annuler);
   $('#btn-tourner').addEventListener('click', () => { orientation = orientation === 'w' ? 'b' : 'w'; maj(); });
-  $('#btn-nouvelle').addEventListener('click', nouvellePartie);
+  $('#btn-nouvelle').addEventListener('click', () => nouvellePartie());
   $('#btn-abandon').addEventListener('click', async () => {
     const r = await modal({ titre: 'Abandonner ?', html: '<p>La partie sera perdue.</p>', actions: [{ label: 'Annuler' }, { label: 'Abandonner', primaire: true }] });
     if (r !== '1') return;
@@ -647,12 +774,18 @@ function showGame({ mode, bot, couleur, cadence }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  nouvellePartie();
+  try {
+    nouvellePartie(lireSauvegarde());
+  } catch {
+    nouvellePartie(); // sauvegarde illisible : on repart de zéro
+  }
 
   cleanup = () => {
     clearInterval(minuterie);
     interrompreBot();
+    vigil?.detruire();
     board.destroy();
+    try { sessionStorage.removeItem(CLE_PARTIE); } catch { /* rien à effacer */ }
   };
 }
 
