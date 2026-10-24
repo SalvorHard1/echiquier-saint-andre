@@ -196,7 +196,7 @@ function compteursVides() {
 }
 
 // garde : contrôle anti-triche. vu = dernière heure vue sur l'appareil · journal = alertes ·
-// preuves = parties gagnées à vérifier par le prof (PGN).
+// preuves = parties gagnées à vérifier par le prof (PGN) · export = date du dernier export (rappel Safari).
 function normaliser(d) {
   const c = { ...compteursVides(), ...(d?.c || {}) };
   for (const k of ['victoires', 'victoiresCadence', 'problemesNiveau', 'themes', 'lecons', 'cours', 'defis']) if (typeof c[k] !== 'object' || !c[k] || Array.isArray(c[k])) c[k] = {};
@@ -206,6 +206,7 @@ function normaliser(d) {
   const liste = (l, ok, n) => (Array.isArray(l) ? l.filter((x) => x && Number.isFinite(x.t) && ok(x)).slice(-n) : []);
   const garde = {
     vu: Number.isFinite(g.vu) ? g.vu : 0,
+    export: Number.isFinite(g.export) ? g.export : 0,
     journal: liste(g.journal, (x) => typeof x.texte === 'string', MAX_JOURNAL),
     preuves: liste(g.preuves, (x) => typeof x.pgn === 'string' && x.pgn.length < 20_000, MAX_PREUVES),
   };
@@ -362,6 +363,62 @@ function ecrire() {
     localStorage.setItem(CLE_SIGNEE, '1');
   } catch { /* navigation privée ou stockage bloqué : on continue en mémoire */ }
 }
+
+/* ---------- Effacement par Safari ---------- */
+// Safari (iPhone, iPad, Mac) efface tout ce qu'un site a enregistré après 7 jours sans visite.
+// Une application ajoutée à l'écran d'accueil y échappe. On demande en plus au navigateur de garder la
+// sauvegarde (stockage « persistant »), et sinon on rappelle à l'élève d'installer ou d'exporter.
+
+const JOURS_RAPPEL = 7;
+let persistant = false;
+navigator.storage?.persisted?.()
+  .then((ok) => ok || navigator.storage.persist?.())
+  .then((ok) => { persistant = !!ok; })
+  .catch(() => {});
+
+const installee = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function navigateurSafari() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)) return true; // iPhone, iPad
+  return /Safari/.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Firefox/.test(ua); // Safari sur Mac
+}
+
+// Encart de rappel (accueil et page Hauts faits), vide quand la sauvegarde ne risque rien.
+export function avisSauvegarde() {
+  if (!navigateurSafari() || installee() || persistant || !Object.keys(etat.debloques).length) return '';
+  if (Date.now() - etat.garde.export < JOURS_RAPPEL * 86400000) return '';
+  return `
+    <div class="avis-sauvegarde" role="note">
+      <p><strong>⚠ Sur iPhone, iPad et Safari, ta progression peut disparaître</strong>
+        <small>Safari efface ce que le site enregistre après 7 jours sans visite. Installe l’application sur l’écran d’accueil :
+          elle y est protégée. Attention, l’application installée a sa propre mémoire : exporte d’abord ta progression ici,
+          puis importe le fichier dans l’application (page Hauts faits).</small></p>
+      <div class="avis-actions">
+        <button type="button" class="btn primary" data-avis-installer>📲 Installer</button>
+        <button type="button" class="btn" data-avis-exporter>Exporter ma progression</button>
+      </div>
+    </div>`;
+}
+
+// Le fichier contient toute la progression, signée, avec le journal de contrôle.
+function exporter() {
+  etat.garde.export = Date.now();
+  ecrire();
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ ...etat, sig: signer(etat) }, null, 1)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `hauts-faits-${auj()}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-avis-installer]')) document.getElementById('btn-installer')?.click();
+  if (e.target.closest('[data-avis-exporter]')) {
+    exporter();
+    e.target.closest('.avis-sauvegarde')?.remove();
+  }
+});
 
 /* ---------- Évènements ---------- */
 
@@ -746,7 +803,9 @@ export function showSucces($app) {
       <div class="donnees">
         <h2>Ma progression</h2>
         <p>Tes hauts faits sont enregistrés <strong>uniquement dans ce navigateur, sur cet appareil</strong>. Rien n'est envoyé sur Internet.
-          Sur un ordinateur partagé (au lycée par exemple), exporte ta progression dans un fichier pour la retrouver ailleurs.</p>
+          Sur un ordinateur partagé (au lycée par exemple), exporte ta progression dans un fichier pour la retrouver ailleurs.
+          Sur iPhone et iPad, installe l’application sur l’écran d’accueil : sinon Safari efface tout après 7 jours sans visite.</p>
+        ${avisSauvegarde()}
         <div class="import-actions">
           <button type="button" class="btn" id="btn-exporter">Exporter ma progression</button>
           <label class="btn">
@@ -775,12 +834,8 @@ export function showSucces($app) {
     }));
 
   $app.querySelector('#btn-exporter').addEventListener('click', () => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify({ ...etat, sig: signer(etat) }, null, 1)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `hauts-faits-${auj()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    exporter();
+    $app.querySelector('.avis-sauvegarde')?.remove();
   });
 
   $app.querySelector('#fichier-succes').addEventListener('change', async (e) => {

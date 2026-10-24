@@ -1,8 +1,15 @@
 // Numéro de version de l'application et journal des nouveautés.
 // À chaque mise en ligne : augmenter VERSION ici, mettre le MÊME numéro dans sw.js, et ajouter une entrée en tête de NOUVEAUTES.
-export const VERSION = '0.12';
+export const VERSION = '0.13';
 
 export const NOUVEAUTES = [
+  {
+    version: '0.13', date: '2026-10-24',
+    changements: [
+      'Sur iPhone et iPad : rappel pour installer l’application ou exporter sa progression, que Safari efface après 7 jours sans visite',
+      'Quand une nouvelle version est prête, le numéro en bas de page clignote avec un pion : touche-le pour la mettre à jour (une dame = application à jour)',
+    ],
+  },
   {
     version: '0.12', date: '2026-10-24',
     changements: [

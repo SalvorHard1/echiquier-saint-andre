@@ -6,7 +6,7 @@ import { BOTS } from './bots.js';
 import { APP } from './config.js';
 import { modal, fermerModal } from './modal.js';
 import { showProblemes, showEntrainement, showCourse } from './problemes.js';
-import { signaler, showSucces, majCompteur } from './succes.js';
+import { signaler, showSucces, majCompteur, avisSauvegarde } from './succes.js';
 import { showPlateaux } from './plateaux.js';
 import { piecePlateau } from './skins.js';
 import { showPasAPas, showLecon } from './lecons.js';
@@ -154,6 +154,7 @@ function showHome() {
         <p>${APP.slogan}</p>
       </div>
       ${carteDefi()}
+      ${avisSauvegarde()}
       <div class="cards">
         <a class="card card-vedette" href="#/pas-a-pas">
           <span class="card-icon" style="--c:#16a34a"><img src="${pieceSrc('w', 'p')}" alt=""></span>
@@ -802,9 +803,21 @@ function afficherNouveautes() {
     actions: [{ label: 'Fermer', primaire: true }],
   });
 }
+// Devant le numéro : une dame quand l'application est à jour, un pion quand une mise à jour attend.
 const $version = document.getElementById('btn-version');
-$version.textContent = `v${VERSION}`;
-$version.addEventListener('click', afficherNouveautes);
+const pieceVersion = (p) => `<img class="version-piece" src="${pieceSrc('w', p)}" alt="">`;
+$version.innerHTML = `${pieceVersion('q')}v${VERSION}`;
+$version.title = 'Application à jour · voir les nouveautés';
+let versionEnLigne = null; // numéro d'une version plus récente déjà téléchargée, en attente d'un rechargement
+$version.addEventListener('click', () => (versionEnLigne ? location.reload() : afficherNouveautes()));
+
+// Le numéro clignote tant que la page tourne avec une ancienne version : un clic recharge sur la nouvelle.
+function signalerMiseAJour(nouvelle) {
+  versionEnLigne = nouvelle;
+  $version.innerHTML = `${pieceVersion('p')}v${VERSION} → Mettre à jour${nouvelle ? ` v${nouvelle}` : ''}`;
+  $version.title = 'Une nouvelle version est prête : clique pour l’installer';
+  $version.classList.add('maj-dispo');
+}
 
 // Après une mise à jour, un petit message propose de voir les nouveautés (le numéro vu est gardé dans le navigateur).
 try {
@@ -826,8 +839,27 @@ try {
 /* ---------- Hors ligne et installation ---------- */
 
 // Le service worker garde les fichiers du site sur l'appareil : l'application marche ensuite sans Internet.
+// Quand une nouvelle version est en ligne, le nouveau service worker la télécharge puis prend la main
+// (« controllerchange ») : la page ouverte tourne encore avec l'ancienne, on le signale.
 if ('serviceWorker' in navigator && isSecureContext) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  const avaitUnControleur = !!navigator.serviceWorker.controller; // sinon : toute première visite, pas une mise à jour
+  navigator.serviceWorker.register('sw.js')
+    .then((reg) => {
+      // Une application installée (iPhone, iPad) peut rester ouverte des jours sans être rechargée : on vérifie
+      // toutes les 30 minutes et à chaque retour sur l'application.
+      const verifier = () => reg.update().catch(() => {});
+      setInterval(verifier, 30 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) verifier(); });
+    })
+    .catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', async () => {
+    if (!avaitUnControleur || versionEnLigne !== null) return;
+    let nouvelle = '';
+    try {
+      nouvelle = (await (await fetch('js/version.js')).text()).match(/VERSION = '([^']+)'/)?.[1] || '';
+    } catch { /* hors ligne : on signale quand même la mise à jour, sans numéro */ }
+    if (nouvelle !== VERSION) signalerMiseAJour(nouvelle);
+  });
   navigator.serviceWorker.ready.then(() => {
     document.getElementById('hors-ligne').hidden = false;
     document.getElementById('hors-ligne-sep').hidden = false;
@@ -861,7 +893,8 @@ $installer.addEventListener('click', async () => {
       <p>Une fois installée, l’application s’ouvre comme les autres, depuis l’écran d’accueil, et <strong>fonctionne sans Internet</strong>.</p>
       <ul class="liste">
         ${apple
-          ? '<li><strong>iPhone / iPad (Safari)</strong> : touche le bouton <b>Partager</b> (carré avec une flèche), puis <b>« Sur l’écran d’accueil »</b>.</li>'
+          ? `<li><strong>iPhone / iPad (Safari)</strong> : touche le bouton <b>Partager</b> (carré avec une flèche), puis <b>« Sur l’écran d’accueil »</b>. Ouvre ensuite l’application depuis son icône : ta progression y est protégée (sinon Safari l’efface après 7 jours sans visite).</li>
+             <li><strong>Pour garder ta progression</strong> : l’application installée a sa propre mémoire. Avant d’installer, va dans <b>Hauts faits</b> → « Exporter ma progression », puis, dans l’application installée, « Importer un fichier ».</li>`
           : `<li><strong>Android (Chrome)</strong> : menu <b>⋮</b> puis <b>« Installer l’application »</b> ou <b>« Ajouter à l’écran d’accueil »</b>.</li>
              <li><strong>Ordinateur (Chrome, Edge)</strong> : l’icône <b>Installer</b> à droite de la barre d’adresse.</li>
              <li><strong>iPhone / iPad</strong> : dans Safari, <b>Partager</b> puis <b>« Sur l’écran d’accueil »</b>.</li>`}

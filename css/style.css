@@ -1197,8 +1197,21 @@ dialog:has(.qr-cadre) { width: min(520px, calc(100vw - 32px)); }
 .triche-tete > span:last-child { display: flex; flex-direction: column; }
 .triche-tete small { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
 .triche-tete strong { font-size: 1.15rem; color: var(--c); }
-.triche-pct { font-size: 2.2rem; font-weight: 800; color: var(--c); font-variant-numeric: tabular-nums; }
+.triche-pct { flex: none; white-space: nowrap; font-size: 2.2rem; font-weight: 800; color: var(--c); font-variant-numeric: tabular-nums; }
 .triche-elements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
 .triche-elements li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
 .triche-elements b { color: var(--c); }
 .triche-score .btn { align-self: flex-start; }
+
+/* ---------- Rappel de sauvegarde (Safari) ---------- */
+.avis-sauvegarde { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 14px; border: 1px solid #f59e0b; border-radius: var(--radius); background: rgba(245, 158, 11, 0.1); }
+.avis-sauvegarde p { flex: 1 1 260px; margin: 0; display: flex; flex-direction: column; gap: 4px; color: var(--text); }
+.avis-sauvegarde small { color: var(--muted); font-size: 0.85rem; }
+.avis-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.donnees .avis-sauvegarde { margin: 0 0 12px; }
+
+/* ---------- Version : mise à jour disponible ---------- */
+.link.maj-dispo { color: #fff; background: #dc2626; padding: 2px 10px; border-radius: 99px; font-weight: 700; text-decoration: none; animation: clignote 1.2s ease-in-out infinite; }
+@keyframes clignote { 50% { opacity: 0.35; } }
+#btn-version { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.version-piece { width: 1.25em; height: 1.25em; }

@@ -3,7 +3,7 @@
 //
 // VERSION : le même numéro que dans js/version.js. Le changer à chaque mise en ligne renouvelle la copie
 // sur les appareils des élèves. Un fichier ajouté au site doit aussi être ajouté à FICHIERS.
-const VERSION = '0.12';
+const VERSION = '0.13';
 const CACHE = `echiquier-${VERSION}`;
 
 const FICHIERS = [
@@ -26,8 +26,9 @@ const FICHIERS = [
 // Gros fichiers qui ne changent presque jamais : on les sert depuis l'appareil sans les retélécharger.
 const FIXES = /\/(vendor|data|assets)\//;
 
+// cache: 'reload' : les fichiers viennent du site, pas du cache du navigateur (qui peut garder l'ancienne version).
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FICHIERS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FICHIERS.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

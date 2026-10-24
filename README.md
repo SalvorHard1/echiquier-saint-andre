@@ -36,6 +36,7 @@ On peut aussi l'**installer** sur l'écran d'accueil, comme une vraie applicatio
 - Les élèves reçoivent la nouvelle version à leur visite suivante, avec un message « Mise à jour installée ».
 - Si tu ajoutes un fichier au site, ajoute-le aussi à la liste `FICHIERS` de `sw.js`.
 - Le hors-ligne marche sur `https://` (GitHub Pages) et sur `http://localhost` (`Lancer.bat`).
+- **iPhone, iPad et Safari** : Safari efface tout ce que le site a enregistré (hauts faits, copie hors ligne) après **7 jours sans visite**. L'application installée sur l'écran d'accueil n'est pas concernée, mais elle a sa propre mémoire : il faut exporter la progression dans Safari, puis l'importer dans l'application. Sur ces appareils, tant que l'application n'est pas installée, un encart le rappelle à l'accueil et sur la page Hauts faits, et propose d'installer ou d'exporter (il disparaît 7 jours après un export). L'application demande aussi au navigateur un stockage « persistant » (`navigator.storage.persist()`).
 
 ## Espace Prof-AS
 
