@@ -1,8 +1,14 @@
 // Numéro de version de l'application et journal des nouveautés.
 // À chaque mise en ligne : augmenter VERSION ici, mettre le MÊME numéro dans sw.js, et ajouter une entrée en tête de NOUVEAUTES.
-export const VERSION = '0.17';
+export const VERSION = '0.18';
 
 export const NOUVEAUTES = [
+  {
+    version: '0.18', date: '2026-10-25',
+    changements: [
+      'S’entraîner aux ouvertures : depuis l’analyse détaillée, un bouton ramène au bilan de ta partie (sans repasser par l’accueil)',
+    ],
+  },
   {
     version: '0.17', date: '2026-10-25',
     changements: [

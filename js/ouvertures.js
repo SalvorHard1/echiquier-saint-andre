@@ -15,6 +15,8 @@ const POIDS = [6, 3, 2, 1]; // chance d'être tirée selon la boîte (les varian
 const COUPS_STOCKFISH = 8; // coups de l'élève contre Stockfish après la sortie du livre
 const sansSigne = (san) => san.replace(/[+#?!]/g, '');
 const cleLigne = (l) => l.coups.map(([c]) => c).join(' ');
+// Bilan gardé en mémoire pendant l'analyse détaillée, pour le retrouver en revenant.
+let reprise = null;
 const numero = (i, san) => `${Math.floor(i / 2) + 1}${i % 2 ? '…' : '.'} ${san}`;
 
 // Vérifie qu'à une même position, toutes les variantes attendent le même coup de l'élève.
@@ -462,11 +464,26 @@ export function showEntrainementOuverture($app, id, { analyser }) {
       et.pos.setHeader('Event', `Entraînement : ${o.nom}`);
       et.pos.setHeader('White', blancs);
       et.pos.setHeader('Black', noirs);
-      analyser(et.pos.pgn());
+      reprise = { id: o.id, ligne, coups: et.pos.history(), debut: et.debut, lignes, chances };
+      analyser(et.pos.pgn(), { href: `#/cours/ouvertures/jouer?o=${o.id}`, label: o.nom });
     });
   }
 
-  nouvelleVariante();
+  // Retour de l'analyse détaillée : on retrouve le bilan de la partie, prêt pour « Rejouer les 8 coups ».
+  if (reprise?.id === o.id) {
+    const r = reprise;
+    reprise = null;
+    ligne = r.ligne;
+    et = { pos: new Chess(), i: ligne.coups.length, erreurs: 0, aide: 0, attente: true, dernier: null, phase: 'bilan', debut: r.debut };
+    let m = null;
+    for (const san of r.coups) m = et.pos.move(san);
+    et.dernier = m && { from: m.from, to: m.to };
+    majVariantes();
+    bilan(r.lignes, r.chances);
+  } else {
+    reprise = null;
+    nouvelleVariante();
+  }
 
   return () => {
     actif = false;

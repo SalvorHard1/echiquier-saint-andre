@@ -28,6 +28,7 @@ const $app = document.getElementById('app');
 let engine = null;
 let cleanup = null;
 let partieAAnalyser = null; // PGN transmis de la partie à l'analyse (en mémoire uniquement)
+let lienAnalyse = null; // { href, label } : bouton de retour affiché sur l'analyse
 const choix = { bot: 'cavalier', couleur: 'w', cadence: 'aucune', cadenceDeux: '5-0' };
 
 const VALEURS = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
@@ -54,8 +55,10 @@ function route() {
   switch (path) {
     case '/analyse': {
       const pgn = partieAAnalyser;
+      const lien = lienAnalyse;
       partieAAnalyser = null;
-      cleanup = showAnalyse($app, { pgn });
+      lienAnalyse = null;
+      cleanup = showAnalyse($app, { pgn, lien });
       return;
     }
     case '/problemes':
@@ -95,8 +98,9 @@ function route() {
       return;
     case '/cours/ouvertures/jouer':
       cleanup = showEntrainementOuverture($app, params.get('o'), {
-        analyser: (pgn) => {
+        analyser: (pgn, lien) => {
           partieAAnalyser = pgn;
+          lienAnalyse = lien;
           location.hash = '#/analyse';
         },
       });

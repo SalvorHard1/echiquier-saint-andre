@@ -127,11 +127,12 @@ const EXEMPLE = `[Event "Opéra de Paris"]
 
 /* ---------- Écran d'import ---------- */
 
-export function showAnalyse($app, { pgn = null } = {}) {
+// lien : { href, label } pour revenir à la page qui a demandé l'analyse (ex. l'entraînement aux ouvertures).
+export function showAnalyse($app, { pgn = null, lien = null } = {}) {
   let nettoyer = () => {};
   const partie = pgn && lirePgn(pgn);
   if (partie) {
-    nettoyer = vueAnalyse($app, partie, () => { nettoyer(); nettoyer = vueImport(); });
+    nettoyer = vueAnalyse($app, partie, () => { nettoyer(); nettoyer = vueImport(); }, lien);
   } else {
     nettoyer = vueImport();
   }
@@ -200,7 +201,7 @@ export function showAnalyse($app, { pgn = null } = {}) {
 
 /* ---------- Écran d'analyse ---------- */
 
-function vueAnalyse($app, { coups, entetes }, retour) {
+function vueAnalyse($app, { coups, entetes }, retour, lien = null) {
   const n = coups.length;
   const fens = [coups[0].before, ...coups.map((m) => m.after)];
   const evals = Array(n + 1).fill(null); // point de vue des Blancs
@@ -222,7 +223,8 @@ function vueAnalyse($app, { coups, entetes }, retour) {
   $app.innerHTML = `
     <section class="game analyse">
       <div class="page-head">
-        <button type="button" class="btn ghost" id="retour">← Nouvelle analyse</button>
+        ${lien ? `<a href="${lien.href}" class="btn ghost">← ${lien.label}</a>` : ''}
+        <button type="button" class="btn ghost" id="retour">${lien ? 'Nouvelle analyse' : '← Nouvelle analyse'}</button>
         <h1>Analyse</h1>
         ${entetes.Result && entetes.Result !== '*' ? `<span class="cad-chip">Résultat : ${entetes.Result}</span>` : ''}
       </div>
