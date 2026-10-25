@@ -178,6 +178,15 @@ a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
 .elo { font-weight: 600; font-size: 0.8rem; color: var(--muted); margin-left: 4px; }
 .niveau { font-size: 0.82rem; font-weight: 600; color: var(--accent); }
 .bot-text small { color: var(--muted); font-size: 0.83rem; }
+.bot { position: relative; }
+.vaincu {
+  position: absolute; top: 8px; right: 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 99px;
+  background: rgba(22, 163, 74, 0.15); color: var(--success);
+  font-size: 0.72rem; font-weight: 700;
+}
+.vaincu svg { width: 13px; height: 13px; }
 
 .avatar {
   flex: none;
@@ -1053,6 +1062,26 @@ a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
 }
 .niveau-puce.sf { --c: #0891b2; }
 .cours-texte-long { font-weight: 500 !important; line-height: 1.55; }
+
+/* S'entraîner aux ouvertures */
+.ouv-carte { border-style: dashed; border-color: color-mix(in srgb, var(--c) 55%, var(--border)); }
+.ouv-pct { margin-left: auto; font-size: 0.78rem; font-weight: 700; color: var(--c); }
+.ouv-intro { margin: 0 0 16px; line-height: 1.5; }
+.ouv-variantes h2 { font-size: 0.75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 4px 0 6px; }
+.ouv-variantes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ouv-variantes li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 0.85rem; }
+.ouv-variantes li span:first-child { flex: 1; min-width: 0; }
+.ouv-variantes li.actuelle { outline: 2px solid var(--c); font-weight: 700; }
+.ouv-boites { display: inline-flex; gap: 3px; }
+.ouv-boites i { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+.ouv-boites i.on { background: var(--success); }
+.ouv-compteur { grid-template-columns: 1fr; }
+.ouv-progres { display: block; height: 8px; border-radius: 99px; background: var(--border); overflow: hidden; }
+.ouv-progres span { display: block; height: 100%; background: var(--c); transition: width 0.2s; }
+.ouv-bilan { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ouv-bilan li { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ouv-bilan li .icone-coup { width: 20px; height: 20px; flex: none; }
+.ouv-bilan li small { margin: 0 0 0 auto !important; }
 .etapes-points span.fait.lu { background: color-mix(in srgb, var(--c) 45%, var(--surface-2)); }
 .muted { color: var(--muted); }
 .petit { font-size: 0.85rem; margin: 0; }
