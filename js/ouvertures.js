@@ -171,10 +171,11 @@ export function showEntrainementOuverture($app, id, { analyser }) {
 
   function majVariantes() {
     const d = lire();
-    $('#variantes').innerHTML = o.lignes.map((l) => {
+    $('#variantes').innerHTML = o.lignes.map((l, i) => {
       const s = statLigne(d, o, l);
       const revelee = l === ligne && (et.phase === 'fin' || et.phase === 'sf' || et.phase === 'bilan');
-      return `<li class="${revelee ? 'actuelle' : ''}"><span>${l.nom}</span>${pointsMaitrise(s?.b)}</li>`;
+      return `<li class="${revelee ? 'actuelle' : ''}"><button type="button" data-ligne="${i}" title="Jouer cette variante">
+        <span>${l.nom}</span>${s?.b >= BOITE_MAX ? '<small class="ouv-revoir">Revoir</small>' : ''}${pointsMaitrise(s?.b)}</button></li>`;
     }).join('');
   }
 
@@ -192,12 +193,19 @@ export function showEntrainementOuverture($app, id, { analyser }) {
       <div class="actions">${boutons}</div>`;
   }
 
+  // Un clic sur une variante de la liste la fait jouer (pour revoir une variante maîtrisée, par exemple).
+  $('#variantes').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-ligne]');
+    if (b) nouvelleVariante(o.lignes[Number(b.dataset.ligne)]);
+  });
+
   /* --- Phase 1 : les coups du répertoire --- */
-  function nouvelleVariante(meme = false) {
+  // choisie : la variante à jouer, sinon une variante tirée au hasard.
+  function nouvelleVariante(choisie = null) {
     clearTimeout(timer);
     jeton++;
     moteur.stop();
-    ligne = meme && ligne ? ligne : tirerLigne(o, ligne);
+    ligne = choisie || tirerLigne(o, ligne);
     et = { pos: new Chess(), i: 0, erreurs: 0, aide: 0, attente: false, dernier: null, phase: 'livre' };
     cadre('Joue les coups de ton répertoire. L’adversaire peut répondre de plusieurs façons !', `
       <button type="button" class="btn btn-aide" id="btn-aide">💡 Indice</button>
@@ -298,7 +306,7 @@ export function showEntrainementOuverture($app, id, { analyser }) {
       <button type="button" class="btn" id="btn-rejouer">↺ Rejouer</button>`);
     message(`${fait}<strong>${bilan}</strong><br><small>Tu sors du livre ici. Continue contre Stockfish pour voir si tu sais jouer la suite : il analysera tes coups.</small>`, reussi ? 'ok' : 'info');
     $('#btn-suivante').addEventListener('click', () => nouvelleVariante());
-    $('#btn-rejouer').addEventListener('click', () => nouvelleVariante(true));
+    $('#btn-rejouer').addEventListener('click', () => nouvelleVariante(ligne));
     $('#btn-sf').addEventListener('click', contreStockfish);
   }
 
@@ -321,6 +329,18 @@ export function showEntrainementOuverture($app, id, { analyser }) {
       afficher();
       message('À toi de jouer !');
     }
+  }
+
+  // Revient à la sortie du livre pour rejouer les coups contre Stockfish (la variante n'est pas notée une 2e fois).
+  function rejouerStockfish() {
+    clearTimeout(timer);
+    jeton++;
+    moteur.stop();
+    while (et.pos.history().length > et.debut) et.pos.undo();
+    const m = et.pos.history({ verbose: true }).at(-1);
+    et.dernier = m ? { from: m.from, to: m.to } : null;
+    et.attente = false;
+    contreStockfish();
   }
 
   const partieFinie = () => et.pos.isGameOver();
@@ -430,11 +450,13 @@ export function showEntrainementOuverture($app, id, { analyser }) {
               : chances > 10 ? 'Tu es en difficulté.' : 'Ta position est perdue.';
     cadre(`Bilan après la variante <b>${ligne.nom}</b>`, `
       <button type="button" class="btn primary wide" id="btn-suivante">Variante suivante →</button>
+      <button type="button" class="btn" id="btn-rejouer-sf">↺ Rejouer les ${COUPS_STOCKFISH} coups</button>
       <button type="button" class="btn" id="btn-detail">🔍 Analyse détaillée</button>
-      <button type="button" class="btn" id="btn-rejouer">↺ Rejouer</button>`);
+      <button type="button" class="btn" id="btn-rejouer">↺ Rejouer la variante</button>`);
     message(`<strong>${avis}</strong>${lignes.length ? `<ul class="ouv-bilan">${lignes.join('')}</ul>` : '<small>Tu n’as joué aucun coup après le livre.</small>'}`, chances >= 45 ? 'ok' : 'info');
     $('#btn-suivante').addEventListener('click', () => nouvelleVariante());
-    $('#btn-rejouer').addEventListener('click', () => nouvelleVariante(true));
+    $('#btn-rejouer-sf').addEventListener('click', rejouerStockfish);
+    $('#btn-rejouer').addEventListener('click', () => nouvelleVariante(ligne));
     $('#btn-detail').addEventListener('click', () => {
       const [blancs, noirs] = camp === 'w' ? ['Élève', 'Stockfish'] : ['Stockfish', 'Élève'];
       et.pos.setHeader('Event', `Entraînement : ${o.nom}`);

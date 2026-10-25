@@ -1,8 +1,15 @@
 // Numéro de version de l'application et journal des nouveautés.
 // À chaque mise en ligne : augmenter VERSION ici, mettre le MÊME numéro dans sw.js, et ajouter une entrée en tête de NOUVEAUTES.
-export const VERSION = '0.16';
+export const VERSION = '0.17';
 
 export const NOUVEAUTES = [
+  {
+    version: '0.17', date: '2026-10-25',
+    changements: [
+      'S’entraîner aux ouvertures : clique sur une variante de la liste pour la rejouer, même maîtrisée (mention « Revoir »)',
+      'Après le bilan de Stockfish, « Rejouer les 8 coups » relance la partie depuis la sortie du livre',
+    ],
+  },
   {
     version: '0.16', date: '2026-10-25',
     changements: [
