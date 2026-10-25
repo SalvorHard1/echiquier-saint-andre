@@ -6,11 +6,12 @@ import { BOTS } from './bots.js';
 import { APP } from './config.js';
 import { modal, fermerModal } from './modal.js';
 import { showProblemes, showEntrainement, showCourse } from './problemes.js';
-import { signaler, showSucces, majCompteur, avisSauvegarde } from './succes.js';
+import { signaler, showSucces, majCompteur, avisSauvegarde, estDebloque } from './succes.js';
 import { showPlateaux } from './plateaux.js';
 import { piecePlateau } from './skins.js';
 import { showPasAPas, showLecon } from './lecons.js';
 import { showCours, showLeconCours } from './cours.js';
+import { showOuvertures, showEntrainementOuverture } from './ouvertures.js';
 import { showDefi, carteDefi } from './defi.js';
 import { VERSION, NOUVEAUTES } from './version.js';
 import { gardeProf, showProf, showProjection, showDossier } from './prof.js';
@@ -88,6 +89,17 @@ function route() {
       return;
     case '/cours/lecon':
       cleanup = showLeconCours($app, params.get('id'));
+      return;
+    case '/cours/ouvertures':
+      cleanup = showOuvertures($app);
+      return;
+    case '/cours/ouvertures/jouer':
+      cleanup = showEntrainementOuverture($app, params.get('o'), {
+        analyser: (pgn) => {
+          partieAAnalyser = pgn;
+          location.hash = '#/analyse';
+        },
+      });
       return;
     case '/problemes/niveau':
       cleanup = showEntrainement($app, { niveau: Number(params.get('n')) || 0, theme: params.get('theme') || 'tous' });
@@ -215,6 +227,9 @@ function avatar(bot, taille = '') {
   return `<span class="avatar ${taille}" style="--c:${bot.couleur}"><img src="${pieceSrc(bot.camp || 'w', bot.piece)}" alt=""></span>`;
 }
 
+// Pastille affichée sur les bots déjà battus (haut fait « bat-… » débloqué).
+const VAINCU = `<span class="vaincu" title="Tu as déjà battu ce bot"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 4l12 12M19 4L7 16"/><path d="M14 18l4-4M10 18l-4-4"/><path d="M18 18l2 2M6 18l-2 2"/></g></svg>Vaincu</span>`;
+
 function showBots() {
   $app.innerHTML = `
     <section class="page">
@@ -226,6 +241,7 @@ function showBots() {
         ${BOTS.map((b) => `
           <button type="button" class="bot" role="radio" data-bot="${b.id}" aria-checked="${b.id === choix.bot}">
             ${avatar(b)}
+            ${estDebloque(`bat-${b.id}`) ? VAINCU : ''}
             <span class="bot-text">
               <strong>${b.nom} <span class="elo">${b.elo}</span></strong>
               <span class="niveau">${b.niveau}</span>
