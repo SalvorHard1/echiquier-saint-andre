@@ -1,11 +1,15 @@
-// Page « Plateaux » : choisir son skin d'échiquier parmi ceux débloqués, voir comment gagner les autres.
-import { SKINS, FAMILLES, skinParId, apercu, pieceSkin, lirePref, ecrirePref, utiliser } from './skins.js';
-import { RANGS, rangActuel, estDebloque, progressionHautFait, afficherToast, insigneRang } from './succes.js';
+// Page « Plateaux » : choisir son skin d'échiquier et son animation de pièces parmi ceux débloqués,
+// voir comment gagner les autres.
+import { SKINS, FAMILLES, skinParId, apercu, pieceSkin, piecePlateau, lirePref, ecrirePref, utiliser } from './skins.js';
+import { ANIMATIONS, animationParId, utiliserAnimation, apercuAnimation, jouerApercu } from './animations.js';
+import { RANGS, PALIERS, rangActuel, estDebloque, progressionHautFait, afficherToast, insigneRang } from './succes.js';
 
 export function skinDebloque(s) {
   if (s.rang) return RANGS.indexOf(rangActuel().rang) >= RANGS.findIndex((r) => r.nom === s.rang);
   return estDebloque(s.hautFait);
 }
+
+const animationDebloquee = (a) => !a.hautFait || estDebloque(a.hautFait);
 
 const famillesDebloquees = () => [...new Set(SKINS.filter(skinDebloque).map((s) => s.pieces))];
 
@@ -24,8 +28,20 @@ function synchroniser(annoncer) {
     }
   }
   pref.vus = debloques;
+
+  const anims = ANIMATIONS.filter(animationDebloquee).map((a) => a.id);
+  if (!anims.includes(pref.anim)) pref.anim = 'glisse';
+  const animsVues = Array.isArray(pref.animVus) ? pref.animVus : anims;
+  if (annoncer) {
+    for (const id of anims.filter((x) => !animsVues.includes(x))) {
+      afficherToast({ classe: 'toast-skin', visuel: apercuAnimation(animationParId(id), piecePlateau), titre: 'Nouvelle animation débloquée', nom: animationParId(id).nom, texte: 'Choisis-la dans « Mes plateaux ».', href: '#/plateaux' });
+    }
+  }
+  pref.animVus = anims;
+
   ecrirePref(pref);
   utiliser(pref.plateau, pref.pieces);
+  utiliserAnimation(pref.anim);
 }
 
 synchroniser(false);
@@ -59,6 +75,22 @@ export function showPlateaux($app) {
       </button>`;
   };
 
+  const carteAnim = (a) => {
+    const ok = animationDebloquee(a);
+    const choisi = ok && pref.anim === a.id;
+    const p = ok ? null : progressionHautFait(a.hautFait);
+    return `
+      <button type="button" class="skin-carte ${choisi ? 'choisi' : ''}" data-anim-choix="${a.id}" ${ok ? '' : 'aria-disabled="true"'} aria-pressed="${choisi}">
+        ${apercuAnimation(a, piecePlateau)}
+        <span class="anim-rarete">${PALIERS[a.palier].nom}</span>
+        <strong>${a.nom}</strong>
+        <small>${a.desc}</small>
+        ${choisi ? '<span class="skin-etat ok">✓ Utilisée</span>'
+          : ok ? '<span class="skin-etat">Choisir</span>'
+            : `<span class="hf-prog"><span style="width:${(p.v / p.objectif) * 100}%"></span></span><span class="skin-etat">🔒 ${p.nom}${p.objectif > 1 ? ` · ${p.v} / ${p.objectif}` : ''}</span>`}
+      </button>`;
+  };
+
   const familles = famillesDebloquees();
   const plateau = skinParId(pref.plateau);
 
@@ -86,7 +118,23 @@ export function showPlateaux($app) {
           `<button type="button" role="radio" class="chip chip-piece" data-pieces="${id}" aria-checked="${pref.pieces === id}"><img src="${pieceSkin(plateau, id, 'w', 'n')}" alt="">${f.nom}</button>`).join('')}
       </div>`}
       <p class="page-intro">${Object.keys(FAMILLES).length - familles.length} styles de pièces à découvrir en gagnant d’autres plateaux.</p>
+
+      <h2 class="skin-titre">Animations des pièces</h2>
+      <p class="page-intro">La façon dont tes pièces se déplacent et prennent, sur n’importe quel plateau. Passe sur une carte pour la voir.</p>
+      <div class="skin-grille">${ANIMATIONS.map(carteAnim).join('')}</div>
     </section>`;
+
+  $app.querySelectorAll('[data-anim-choix]').forEach((b) => {
+    const jouer = () => jouerApercu(b.querySelector('.anim-apercu'));
+    b.addEventListener('mouseenter', jouer);
+    b.addEventListener('click', () => {
+      if (b.getAttribute('aria-disabled') === 'true') return jouer();
+      ecrirePref({ ...lirePref(), anim: b.dataset.animChoix });
+      synchroniser(false);
+      showPlateaux($app);
+      jouerApercu($app.querySelector(`[data-anim-choix="${b.dataset.animChoix}"] .anim-apercu`));
+    });
+  });
 
   $app.querySelectorAll('[data-skin]').forEach((b) =>
     b.addEventListener('click', () => {
