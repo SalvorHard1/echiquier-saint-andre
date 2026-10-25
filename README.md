@@ -92,7 +92,7 @@ Numérotation conseillée : `0.11`, `0.12`… pour les ajouts, et `1.0` pour la 
 | `js/position.js` | Page d'une position partagée : la jouer contre un bot ou à deux |
 | `js/succes.js` | Hauts faits : objectifs, médailles, rangs, sauvegarde locale signée, journal de contrôle |
 | `js/vigilance.js` | Anti-triche : sorties de la page, rythme de jeu, alertes |
-| `js/skins.js` | Skins de plateau : couleurs des cases et 10 styles de pièces dessinés en SVG |
+| `js/skins.js` | Skins de plateau : 26 plateaux (couleurs ou motifs CSS des cases) et 15 jeux de pièces, débloqués par rang ou haut fait |
 | `js/plateaux.js` | Page « Plateaux » : choix du skin, déblocage par rang ou haut fait |
 | `js/lecons.js` | Parcours « Pas à pas » : carte des leçons et déroulé des étapes |
 | `js/lecons-data.js` | Contenu des leçons (positions, consignes, quiz) : facile à compléter |
@@ -105,7 +105,8 @@ Numérotation conseillée : `0.11`, `0.12`… pour les ajouts, et `1.0` pour la 
 | `js/config.js` | Nom de l'application |
 | `js/version.js` | Numéro de version et journal des nouveautés |
 | `vendor/` | Bibliothèques libres : Stockfish 17.1 lite, chess.js 1.4 |
-| `assets/pieces/` | Pièces « cburnett » (Lichess) |
+| `assets/pieces/` | Pièces « cburnett » (à la racine) et les autres jeux de pièces de Lichess (un dossier par jeu, voir `js/skins.js`) |
+| `outils/planche/` | Planche de comparaison des jeux de pièces et des plateaux (outil de travail, pas dans l'application) |
 | `sw.js`, `manifest.webmanifest`, `assets/icone-*.png` | Hors ligne et installation sur l'écran d'accueil |
 | `outils/serveur.ps1`, `Lancer.bat` | Serveur de test local |
 | `outils/publier.ps1`, `Publier.bat` | Changement de version et vérification avant mise en ligne |
@@ -116,3 +117,8 @@ Numérotation conseillée : `0.11`, `0.12`… pour les ajouts, et `1.0` pour la 
 - Application : **GPL-3.0** (voir `LICENSE`).
 - Problèmes : [base de problèmes Lichess](https://database.lichess.org/#puzzles), domaine public (CC0). Sélection : problèmes populaires et beaucoup joués, difficulté fiable.
 - [Stockfish](https://stockfishchess.org) : GPL-3.0 · [chess.js](https://github.com/jhlywa/chess.js) : BSD-2 · pièces cburnett (Colin M.L. Burnett) : GPL-2.0+.
+- Jeux de pièces de [Lichess](https://github.com/lichess-org/lila/blob/master/COPYING.md), utilisés tels quels dans `assets/pieces/` :
+  - merida (Armando Hernandez Marroquin) : GPL-2.0+ · chessnut ([Alexis Luengas](https://github.com/LexLuengas/chessnut-pieces)) : Apache 2.0
+  - celtic, fantasy, spatial ([Maurizio Monge](https://github.com/maurimo/chess-art)) : MIT
+  - papercut ([Nikolay Anzarov](https://nikoichu.itch.io/)) : CC BY 4.0 · shapes ([flugsio](https://github.com/flugsio/chess_shapes)) : CC BY-SA 4.0
+  - staunty, maestro, cardinal, tatiana (sadsnake1), california (Jerry S.), horsey (cham, michael1241), anarcandy ([caderek](https://github.com/caderek)) : [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), usage non commercial uniquement.
