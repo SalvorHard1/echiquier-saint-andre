@@ -1069,9 +1069,15 @@ a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
 .ouv-intro { margin: 0 0 16px; line-height: 1.5; }
 .ouv-variantes h2 { font-size: 0.75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 4px 0 6px; }
 .ouv-variantes ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.ouv-variantes li { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 0.85rem; }
-.ouv-variantes li span:first-child { flex: 1; min-width: 0; }
-.ouv-variantes li.actuelle { outline: 2px solid var(--c); font-weight: 700; }
+.ouv-variantes li button {
+  width: 100%; display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border: 0; border-radius: var(--radius-sm);
+  background: var(--surface-2); color: inherit; font: inherit; font-size: 0.85rem; text-align: left; cursor: pointer;
+}
+.ouv-variantes li button:hover { outline: 2px solid color-mix(in srgb, var(--c) 50%, transparent); }
+.ouv-variantes li button > span:first-child { flex: 1; min-width: 0; }
+.ouv-variantes li.actuelle button { outline: 2px solid var(--c); font-weight: 700; }
+.ouv-revoir { font-size: 0.72rem; font-weight: 700; color: var(--c); }
 .ouv-boites { display: inline-flex; gap: 3px; }
 .ouv-boites i { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
 .ouv-boites i.on { background: var(--success); }
