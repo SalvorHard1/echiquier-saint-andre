@@ -302,8 +302,8 @@ a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
   -webkit-user-select: none;
 }
 .sq { position: relative; }
-.sq.light { background: var(--sq-light); }
-.sq.dark { background: var(--sq-dark); }
+.sq.light { background: var(--sq-light-fond, var(--sq-light)); }
+.sq.dark { background: var(--sq-dark-fond, var(--sq-dark)); }
 .sq.last::before, .sq.selected::before { content: ""; position: absolute; inset: 0; background: var(--hl-last); }
 .sq.selected::before { background: var(--hl-sel); }
 .sq.check { background-image: radial-gradient(circle, rgba(239, 68, 68, 0.95) 0%, rgba(239, 68, 68, 0.55) 35%, rgba(239, 68, 68, 0) 72%); }
@@ -318,7 +318,7 @@ a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
 }
 .sq.target.capture::after { width: 88%; height: 88%; background: transparent; border: 0.45em solid var(--hint); border-width: calc(var(--board) / 8 * 0.08); }
 .sq.hover { box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.75); }
-.piece { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+.piece { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; filter: drop-shadow(0 2px 1.5px rgba(0, 0, 0, 0.35)); }
 .sq.dragging .piece { opacity: 0.3; }
 .piece-ghost { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.3)); }
 .coord { position: absolute; z-index: 3; font-size: clamp(9px, calc(var(--board) / 45), 13px); font-weight: 700; pointer-events: none; }
@@ -701,6 +701,141 @@ a.card:hover { transform: translateY(-2px); border-color: var(--accent); }
 .chip-piece img { width: 22px; height: 22px; }
 .toast-skin { border-color: var(--accent); }
 .toast .apercu { width: 48px; }
+.toast .anim-apercu { width: 64px; flex: none; margin: 0; }
+
+/* Animations des pièces (js/animations.js). --dx / --dy : départ de la pièce par rapport à sa case, en % d'une case. */
+.anim-apercu { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; margin-bottom: 6px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12); font-size: 12px; }
+.anim-apercu > span { position: relative; aspect-ratio: 1; }
+.anim-apercu > .light { background: var(--sq-light); }
+.anim-apercu > .dark { background: var(--sq-dark); }
+.skin-carte[aria-disabled="true"] .anim-apercu { filter: saturate(0.55); opacity: 0.8; }
+.anim-rarete { font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+/* Pendant une animation, la pièce peut sortir du plateau (saut, chute) : les cases de coin gardent l'arrondi. */
+.board.anim-en-cours { overflow: visible; }
+.board > .sq:nth-child(1) { border-top-left-radius: 8px; }
+.board > .sq:nth-child(8) { border-top-right-radius: 8px; }
+.board > .sq:nth-child(57) { border-bottom-left-radius: 8px; }
+.board > .sq:nth-child(64) { border-bottom-right-radius: 8px; }
+.board .anim-fx.texte { font-size: calc(var(--board) / 8 * 0.3); }
+.board .a-ko .anim-fx.texte { font-size: calc(var(--board) / 8 * 0.4); }
+.sq.anim-dest, .anim-apercu > .anim-dest { z-index: 5; }
+.sq.anim-origine, .anim-apercu > .anim-origine { z-index: 4; }
+.anim-piece { z-index: 2; transform-origin: 50% 90%; }
+.victime { z-index: 1; }
+.anim-fx { position: absolute; pointer-events: none; z-index: 3; opacity: 0; }
+.anim-fx.fantome { z-index: 1; }
+.anim-fx.texte { left: -50%; right: -50%; top: 0; text-align: center; font-weight: 800; color: #facc15; -webkit-text-stroke: 1px #78350f; }
+.a-ko .anim-fx.texte { top: 20%; color: #ef4444; -webkit-text-stroke: 1px #450a0a; font-size: 1.3em; }
+.anim-fx.anneau { inset: 5%; border-radius: 50%; border: 3px solid #f97316; }
+.anim-fx.a2 { border-color: #3b82f6; }
+.anim-fx.poussiere { border-color: rgba(255, 255, 255, 0.85); }
+.anim-fx.eclat { left: 39%; top: 39%; width: 22%; height: 22%; background: #1f2937; }
+.anim-fx.capsule { left: 56%; top: 56%; width: 36%; height: 36%; border-radius: 50%; background: #fff; border: 2px solid #1f2937; overflow: hidden; }
+.anim-fx.capsule i { display: block; height: 45%; background: #ef4444; border-bottom: 2px solid #1f2937; }
+
+.a-glisse .anim-piece, .a-capsule .anim-piece { animation: anim-trajet 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) backwards; }
+.a-glisse .victime { animation: anim-efface 0.2s 0.18s forwards; }
+
+.a-saut .anim-piece { animation: anim-saut 0.5s backwards; }
+.a-saut .victime { animation: anim-ecrase 0.35s 0.42s forwards; }
+.a-saut .texte { animation: anim-piece-or 0.7s 0.45s forwards; }
+
+.a-pixel .anim-piece { animation: anim-trajet 0.45s steps(4) backwards; image-rendering: pixelated; }
+.a-pixel .victime { animation: anim-clignote 0.5s 0.45s steps(1) forwards; }
+
+.a-capsule .victime { animation: anim-aspire 0.25s 0.22s forwards; }
+.a-capsule .capsule { animation: anim-capsule 1.4s 0.45s forwards; }
+
+.a-turbo .anim-piece { animation: anim-turbo 0.22s cubic-bezier(0.6, 0, 0.4, 1) backwards; }
+.a-turbo .fantome { animation: anim-fantome 0.22s cubic-bezier(0.6, 0, 0.4, 1) both; }
+.a-turbo .f1 { animation-delay: 0.04s; }
+.a-turbo .f2 { animation-delay: 0.08s; }
+.a-turbo .victime { animation: anim-efface 0.15s 0.18s forwards; }
+
+.a-blocs .anim-piece { animation: anim-blocs 0.75s backwards; }
+.a-blocs .victime { animation: anim-efface 0.05s 0.55s forwards; }
+.a-blocs .eclat { animation: anim-eclat 0.5s 0.56s forwards; }
+
+.a-carte .anim-piece { animation: anim-carte 0.7s backwards; }
+.a-carte .victime { animation: anim-retourne 0.3s 0.5s forwards; }
+.a-carte .poussiere { animation: anim-anneau 0.4s 0.58s forwards; }
+
+.a-ko .anim-piece { animation: anim-ko 0.38s cubic-bezier(0.5, 0, 0.2, 1) backwards; }
+.a-ko .victime { animation: anim-envol 0.6s 0.33s forwards; }
+.a-ko .texte { animation: anim-ko-texte 0.9s 0.33s forwards; }
+.anim-secousse { animation: anim-secousse 0.3s 0.33s; }
+
+.a-portail .anim-piece { animation: anim-portail 0.6s backwards; }
+.a-portail .a1 { animation: anim-anneau 0.5s forwards; }
+.a-portail .a2 { animation: anim-anneau 0.5s 0.22s forwards; }
+.a-portail .victime { animation: anim-efface 0.2s 0.22s forwards; }
+
+.a-glitch .anim-piece { animation: anim-glitch 0.55s steps(1) backwards; }
+.a-glitch .victime { animation: anim-glitch-prise 0.45s 0.5s steps(1) forwards; }
+
+/* Pièce lâchée à la main : pas de trajet, elle se pose. */
+.anim-dest.anim-lache .piece.anim-piece { animation: anim-pose 0.18s ease-out; }
+
+@keyframes anim-trajet { from { transform: translate(var(--dx), var(--dy)); } }
+@keyframes anim-pose { from { transform: scale(1.12); } }
+@keyframes anim-efface { to { opacity: 0; transform: scale(0.7); } }
+@keyframes anim-saut {
+  0% { transform: translate(var(--dx), var(--dy)); }
+  12% { transform: translate(var(--dx), var(--dy)) scale(1.2, 0.8); }
+  50% { transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5 - 90%)) scale(0.9, 1.12); }
+  85% { transform: scale(1.2, 0.8); }
+}
+@keyframes anim-ecrase { 40% { transform: translateY(-25%); } 100% { transform: translateY(60%) scaleY(0.3); opacity: 0; } }
+@keyframes anim-piece-or { 0% { opacity: 1; transform: translateY(20%); } 100% { opacity: 0; transform: translateY(-90%); } }
+@keyframes anim-clignote { 0%, 40%, 80% { opacity: 0; } 20%, 60% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes anim-aspire { to { transform: scale(0) rotate(-90deg); opacity: 0; } }
+@keyframes anim-capsule {
+  0% { opacity: 1; transform: scale(0); }
+  12% { opacity: 1; transform: scale(1); }
+  28% { transform: rotate(-25deg); }
+  44% { transform: rotate(20deg); }
+  60% { transform: rotate(-12deg); }
+  72% { transform: none; }
+  88% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+@keyframes anim-turbo { from { transform: translate(var(--dx), var(--dy)) rotate(-360deg); } }
+@keyframes anim-fantome { 0% { opacity: 0.35; transform: translate(var(--dx), var(--dy)); } 99% { opacity: 0.35; } 100% { opacity: 0; transform: none; } }
+@keyframes anim-blocs {
+  0% { transform: translate(var(--dx), var(--dy)); }
+  25% { transform: translate(var(--dx), calc(var(--dy) - 60%)); opacity: 0; }
+  26% { transform: translateY(-250%); opacity: 1; }
+  75% { transform: scale(1.2, 0.8); }
+}
+@keyframes anim-eclat { 0% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--x) * 4), calc(var(--y) * 4)) rotate(120deg); } }
+@keyframes anim-carte {
+  0% { transform: translate(var(--dx), var(--dy)); }
+  25% { transform: translate(var(--dx), calc(var(--dy) - 40%)) scale(1.3) rotate(-10deg); }
+  70% { transform: translateY(-40%) scale(1.3) rotate(8deg); }
+  85% { transform: scale(0.92); }
+}
+@keyframes anim-retourne { to { transform: rotateY(90deg); opacity: 0; } }
+@keyframes anim-anneau { 0% { opacity: 1; transform: scale(0.4); } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes anim-ko {
+  0% { transform: translate(var(--dx), var(--dy)); }
+  35% { transform: translate(calc(var(--dx) * 1.1), calc(var(--dy) * 1.1)) scale(0.9, 1.1); }
+}
+@keyframes anim-envol { to { transform: translate(calc(var(--dx) * -0.5), -150%) rotate(600deg); opacity: 0; } }
+@keyframes anim-ko-texte { 0% { opacity: 1; transform: scale(2.4); } 25% { transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes anim-secousse { 25% { transform: translate(-4px, 2px); } 50% { transform: translate(4px, -2px); } 75% { transform: translate(-2px, 1px); } }
+@keyframes anim-portail {
+  0% { transform: translate(var(--dx), var(--dy)); }
+  40% { transform: translate(var(--dx), var(--dy)) scale(0) rotate(180deg); }
+  41% { transform: scale(0); }
+}
+@keyframes anim-glitch {
+  0% { transform: translate(var(--dx), var(--dy)); }
+  20% { transform: translate(calc(var(--dx) * 0.75 + 8%), calc(var(--dy) * 0.8 - 6%)); filter: drop-shadow(-3px 0 #ec4899) drop-shadow(3px 0 #06b6d4); }
+  40% { transform: translate(calc(var(--dx) * 0.5 - 8%), calc(var(--dy) * 0.45 + 8%)); filter: none; }
+  60% { transform: translate(calc(var(--dx) * 0.25), calc(var(--dy) * 0.25 - 8%)); filter: drop-shadow(3px 0 #ec4899) drop-shadow(-3px 0 #06b6d4); }
+  80% { transform: translate(-6%, 4%); filter: none; }
+}
+@keyframes anim-glitch-prise { 0% { transform: translateX(8%); } 25% { transform: translateX(-8%) scaleY(0.4); } 50% { opacity: 0.4; transform: scaleX(1.4); } 75% { opacity: 1; transform: translateX(6%) scaleY(0.2); } 100% { opacity: 0; } }
 .rang-texte { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .rang-texte strong { font-size: 1.7rem; line-height: 1.1; }
 .rang-texte small { opacity: 0.85; font-size: 0.82rem; }
