@@ -5,6 +5,7 @@ import { piecePlateau } from './skins.js';
 import { obtenirMoteur } from './engine.js';
 import { CHAPITRES_COURS, COURS, NIVEAUX_COURS, etoilesMaxCours } from './cours-data.js';
 import { signaler, etoilesCours } from './succes.js';
+import { carteOuvertures } from './ouvertures.js';
 import { confettis } from './problemes.js';
 import { modal } from './modal.js';
 import { ICONE_OK, ICONE_KO, NOMS_PIECES, etoilesHtml } from './lecons.js';
@@ -71,6 +72,7 @@ export function showCours($app) {
       return `
         <h2 class="section-titre"><span class="chap-num" style="--c:${ch.couleur}">${ic + 1}</span>${ch.nom} <small>${ch.desc}</small></h2>
         <div class="cours-liste">
+          ${ch.id === 'repertoire' ? carteOuvertures() : ''}
           ${liste.map((l) => {
             const n = note(l);
             return `

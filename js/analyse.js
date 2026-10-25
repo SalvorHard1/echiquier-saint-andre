@@ -34,7 +34,7 @@ export function iconeCoup(cat, cls = '') {
 }
 
 // Pourcentage de chances de gain des Blancs (formule utilisée par Lichess).
-function chancesBlancs(ev) {
+export function chancesBlancs(ev) {
   if (!ev) return 50;
   if (ev.gagnant) return ev.gagnant === 'w' ? 100 : 0;
   if (ev.mate !== undefined) return ev.mate > 0 ? 100 : 0;
@@ -50,7 +50,7 @@ function texteEval(ev) {
 }
 
 // Seuils en points de « chances de gain » perdus par le coup.
-function classer(perte, estMeilleur) {
+export function classer(perte, estMeilleur) {
   // « Meilleur coup » ne compte que si l'évaluation suivante le confirme (le moteur peut se tromper).
   if ((estMeilleur && perte <= 5) || perte <= 1) return 'tresbon';
   if (perte <= 5) return 'bon';

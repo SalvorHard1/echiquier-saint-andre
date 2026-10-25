@@ -1,8 +1,17 @@
 // Numéro de version de l'application et journal des nouveautés.
 // À chaque mise en ligne : augmenter VERSION ici, mettre le MÊME numéro dans sw.js, et ajouter une entrée en tête de NOUVEAUTES.
-export const VERSION = '0.15';
+export const VERSION = '0.16';
 
 export const NOUVEAUTES = [
+  {
+    version: '0.16', date: '2026-10-25',
+    changements: [
+      'Cours > Les ouvertures : nouveau mode « S’entraîner », où l’adversaire varie ses réponses (28 variantes sur 6 ouvertures)',
+      'Après les coups du livre, continue contre Stockfish : il analyse tes coups et te montre le meilleur',
+      'Les variantes ratées reviennent plus souvent, avec une barre de maîtrise par ouverture',
+      'Les bots que tu as déjà battus portent la pastille « Vaincu »',
+    ],
+  },
   {
     version: '0.15', date: '2026-10-25',
     changements: [
