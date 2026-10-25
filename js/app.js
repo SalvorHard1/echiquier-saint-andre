@@ -15,12 +15,14 @@ import { showDefi, carteDefi } from './defi.js';
 import { VERSION, NOUVEAUTES } from './version.js';
 import { gardeProf, showProf, showProjection, showDossier } from './prof.js';
 import { showTournoi } from './tournoi.js';
+import { showEloListe, showEloMatchs } from './elo.js';
+import { showHistorique, enregistrerPartie, COUPS_MIN } from './historique.js';
 import { showPosition, fenValide } from './position.js';
 import { parseCadence, selecteurCadence, libelle, icone, formatTemps } from './cadences.js';
 import { surveiller, verdict, alerteTriche, bandeau, SEUILS, BOTS_STRICTS } from './vigilance.js';
 
-// Les parties vivent en mémoire et disparaissent à la fermeture de l'onglet.
-// Seuls les hauts faits sont gardés, dans le navigateur de l'élève (voir succes.js).
+// Seuls les hauts faits (voir succes.js) et l'historique « Mes parties » (voir historique.js) sont gardés,
+// dans le navigateur de l'élève.
 const $app = document.getElementById('app');
 let engine = null;
 let cleanup = null;
@@ -61,6 +63,14 @@ function route() {
     case '/succes':
       cleanup = showSucces($app);
       return;
+    case '/parties':
+      cleanup = showHistorique($app, {
+        analyser: (pgn) => {
+          partieAAnalyser = pgn;
+          location.hash = '#/analyse';
+        },
+      });
+      return;
     case '/plateaux':
       cleanup = showPlateaux($app);
       return;
@@ -93,6 +103,12 @@ function route() {
       return;
     case '/prof/tournoi':
       cleanup = gardeProf($app, () => showTournoi($app));
+      return;
+    case '/prof/elo':
+      cleanup = gardeProf($app, () => showEloListe($app));
+      return;
+    case '/prof/elo/matchs':
+      cleanup = gardeProf($app, () => showEloMatchs($app));
       return;
     case '/prof/dossier':
       cleanup = gardeProf($app, () => showDossier($app, {
@@ -132,8 +148,9 @@ document.getElementById('btn-confidentialite').addEventListener('click', () => {
         <li><strong>Aucun compte</strong>, aucune inscription, aucun nom demandé.</li>
         <li><strong>Rien n'est envoyé sur Internet</strong> : aucune partie, aucun résultat ne quitte ton appareil.</li>
         <li><strong>Seuls tes hauts faits</strong> (les étoiles de « Pas à pas » et des « Cours », les résultats du défi du jour) sont enregistrés, dans le stockage local de ton navigateur, sur cet appareil uniquement. Tu peux les exporter ou tout effacer depuis la page <a href="#/succes">Hauts faits</a>.</li>
-        <li>Les parties, analyses et problèmes en cours ne sont pas sauvegardés : fermer l'onglet les efface. Seule une partie en cours est gardée le temps de l'onglet, pour ne pas la perdre si la page se recharge.</li>
-        <li>Le <strong>mode tournoi</strong> de l'espace Prof-AS garde les prénoms des élèves inscrits sur l'appareil du prof uniquement, jusqu'à ce qu'il efface le tournoi.</li>
+        <li>Tes <strong>50 dernières parties</strong> (contre les bots et à deux) sont gardées sur cet appareil uniquement, sans nom, pour que tu puisses les revoir dans <a href="#/parties">Mes parties</a>. Tu peux les supprimer à tout moment.</li>
+        <li>Les analyses et problèmes en cours ne sont pas sauvegardés : fermer l'onglet les efface. Une partie en cours est gardée le temps de l'onglet, pour ne pas la perdre si la page se recharge.</li>
+        <li>Le <strong>mode tournoi</strong> de l'espace Prof-AS garde les prénoms des élèves inscrits sur l'appareil du prof uniquement, jusqu'à ce qu'il efface le tournoi. Le <strong>classement Elo</strong> du club (prénoms et résultats des parties) reste lui aussi sur l'appareil du prof uniquement.</li>
         <li>Une position partagée par QR code voyage dans le lien lui-même : elle ne passe par aucun serveur.</li>
         <li><strong>Aucun cookie</strong>, aucun traceur, aucune statistique de visite, aucune publicité.</li>
         <li><strong>Aucun service extérieur</strong> : le moteur d'échecs tourne directement sur ton appareil.</li>
@@ -183,6 +200,10 @@ function showHome() {
         <a class="card" href="#/analyse">
           <span class="card-icon" style="--c:#0891b2"><img src="${pieceSrc('w', 'r')}" alt=""></span>
           <span class="card-text"><strong>Analyser une partie</strong><small>Colle ton PGN : chaque coup est corrigé par Stockfish.</small></span>
+        </a>
+        <a class="card" href="#/parties">
+          <span class="card-icon" style="--c:#475569"><img src="${pieceSrc('b', 'k')}" alt=""></span>
+          <span class="card-text"><strong>Mes parties</strong><small>Tes dernières parties : revois-les coup par coup et analyse-les avec Stockfish.</small></span>
         </a>
       </div>
     </section>`;
@@ -288,6 +309,7 @@ function showGame({ mode, bot, couleur, cadence, fen = null }) {
   let resultatForce = null; // résultat PGN en cas d'abandon ou de temps écoulé
   let moteurOk = true;
   let signalee = false; // la fin de partie a-t-elle déjà été comptée pour les hauts faits ?
+  let idPartie = 0; // identifiant de la partie dans l'historique « Mes parties »
   let pireRetard = 0; // plus gros retard de matériel de l'élève pendant la partie
   let reprise = false; // l'élève a-t-il repris un coup contre le bot ? (la victoire ne compte alors pas)
   // Anti-triche contre les bots : sorties de la page pendant le tour de l'élève et temps de chaque coup.
@@ -487,6 +509,24 @@ function showGame({ mode, bot, couleur, cadence, fen = null }) {
     });
   }
 
+  // Range la partie dans « Mes parties » : terminée, ou quittée en cours de route après quelques coups.
+  function archiver() {
+    const n = chess.history().length;
+    if (!n || (!fin && n < COUPS_MIN)) return;
+    enregistrerPartie({
+      id: idPartie,
+      mode,
+      bot: bot?.id,
+      joueur,
+      resultat: resultatPgn(),
+      fin,
+      pgn: pgn(),
+      coups: Math.ceil(n / 2),
+      cadence: cadence ? `${cadence.groupe.nom} ${libelle(cadence.id)}` : null,
+      fen,
+    });
+  }
+
   function texteStatut() {
     if (fin) return fin;
     if (!moteurOk) return 'Le moteur n’a pas pu se charger. Recharge la page.';
@@ -527,7 +567,7 @@ function showGame({ mode, bot, couleur, cadence, fen = null }) {
       if (fin || !chess.history().length) return sessionStorage.removeItem(CLE_PARTIE);
       // monTour : un rechargement de la page pendant le tour de l'élève compte comme une sortie.
       const garde = vigil && { sorties: vigil.sorties, absence: vigil.absence, tempsCoups, monTour: chess.turn() === joueur };
-      sessionStorage.setItem(CLE_PARTIE, JSON.stringify({ signature, pgn: chess.pgn(), joueur, orientation, temps, tempsHist, pireRetard, reprise, garde }));
+      sessionStorage.setItem(CLE_PARTIE, JSON.stringify({ signature, idPartie, pgn: chess.pgn(), joueur, orientation, temps, tempsHist, pireRetard, reprise, garde }));
     } catch { /* stockage indisponible : la partie reste en mémoire seulement */ }
   }
 
@@ -564,6 +604,7 @@ function showGame({ mode, bot, couleur, cadence, fen = null }) {
     fin = texte;
     maj();
     compterPourHautsFaits();
+    archiver();
     await sleep(400);
     if (fin !== texte) return;
     const actions = [
@@ -662,6 +703,8 @@ function showGame({ mode, bot, couleur, cadence, fen = null }) {
   // camp : couleur imposée à l'élève (revanche avec les couleurs inversées).
   function nouvellePartie(s = null, camp = null) {
     interrompreBot();
+    if (!fin) archiver(); // partie abandonnée en cours de route avec « Nouvelle »
+    idPartie = s?.idPartie || Date.now();
     chess.reset();
     fin = null;
     signalee = false;
@@ -727,12 +770,14 @@ function showGame({ mode, bot, couleur, cadence, fen = null }) {
     if (vsBot && chess.turn() !== joueur) coupBot();
   }
 
+  function resultatPgn() {
+    if (resultatForce) return resultatForce;
+    if (chess.isCheckmate()) return chess.turn() === 'w' ? '0-1' : '1-0';
+    return fin ? '1/2-1/2' : '*';
+  }
+
   function pgn() {
-    let r = '*';
-    if (resultatForce) r = resultatForce;
-    else if (chess.isCheckmate()) r = chess.turn() === 'w' ? '0-1' : '1-0';
-    else if (fin) r = '1/2-1/2';
-    chess.setHeader('Result', r);
+    chess.setHeader('Result', resultatPgn());
     return chess.pgn();
   }
 
@@ -784,6 +829,7 @@ function showGame({ mode, bot, couleur, cadence, fen = null }) {
   cleanup = () => {
     clearInterval(minuterie);
     interrompreBot();
+    if (!fin) archiver(); // partie quittée en cours de route
     vigil?.detruire();
     board.destroy();
     try { sessionStorage.removeItem(CLE_PARTIE); } catch { /* rien à effacer */ }

@@ -13,31 +13,116 @@ import { lireDossier, rangActuel, insigneRang, journalHtml, echapper, HAUTS_FAIT
 import { precisionPartie } from './analyse.js';
 
 const CLE_PROF = 'echiquier-saint-andre:prof';
+const CLE_ESSAIS = 'echiquier-saint-andre:prof-essais';
 const NOMS = { k: 'Roi', q: 'Dame', r: 'Tour', b: 'Fou', n: 'Cavalier', p: 'Pion' };
 
 /* ---------- Verrou ---------- */
+// config.js contient « pbkdf2:itérations:sel:contrôle ». Le mot de passe donne une clé (PBKDF2, lent exprès pour
+// freiner les essais en masse) et le contrôle est le SHA-256 de cette clé. L'onglet déverrouillé garde la clé :
+// copier le contrôle public de config.js dans le sessionStorage ne suffit donc pas pour entrer.
 
-async function hacher(mdp) {
-  const octets = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`echiquier-saint-andre:${mdp}`));
-  return [...new Uint8Array(octets)].map((b) => b.toString(16).padStart(2, '0')).join('');
+const INACTIVITE = 30 * 60_000; // verrouillage automatique après 30 min sans toucher l'appareil
+const ESSAIS_LIBRES = 5; // erreurs permises avant d'attendre
+const ATTENTE = 30_000; // attente après la 5ᵉ erreur, doublée à chaque erreur suivante…
+const ATTENTE_MAX = 15 * 60_000; // …jusqu'à 15 min
+
+const hex = (octets) => [...new Uint8Array(octets)].map((b) => b.toString(16).padStart(2, '0')).join('');
+const octetsHex = (h) => new Uint8Array(h.match(/../g).map((x) => parseInt(x, 16)));
+
+// null si config.js a encore une empreinte de l'ancien format (SHA-256 simple).
+function empreinte() {
+  const m = /^pbkdf2:(\d+):([0-9a-f]{32}):([0-9a-f]{64})$/.exec(APP.motDePasseProf);
+  return m && { iterations: Number(m[1]), sel: m[2], controle: m[3] };
 }
 
-// Le déverrouillage dure le temps de l'onglet. On garde l'empreinte : changer le mot de passe reverrouille.
-function deverrouille() {
-  try {
-    return sessionStorage.getItem(CLE_PROF) === APP.motDePasseProf;
-  } catch {
+async function deriver(mdp, { iterations, sel }) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(mdp), 'PBKDF2', false, ['deriveBits']);
+  return hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: octetsHex(sel), iterations }, base, 256));
+}
+
+const controle = async (cle) => hex(await crypto.subtle.digest('SHA-256', octetsHex(cle)));
+
+function lire(stockage, cle) {
+  try { return JSON.parse(stockage.getItem(cle)) || null; } catch { return null; }
+}
+function ecrire(stockage, cle, valeur) {
+  try { stockage.setItem(cle, JSON.stringify(valeur)); } catch { /* stockage indisponible */ }
+}
+
+let cleVerifiee = null; // clé de session déjà contrôlée depuis le chargement de la page
+
+// 'ok', 'a-controler' (clé pas encore contrôlée depuis le chargement) ou null (verrouillé).
+function etatSession() {
+  const s = lire(sessionStorage, CLE_PROF);
+  if (!s || typeof s.cle !== 'string' || !/^[0-9a-f]{64}$/.test(s.cle) || !empreinte()) return null;
+  if (!(Date.now() - s.vu < INACTIVITE)) {
+    verrouiller();
+    return null;
+  }
+  return s.cle === cleVerifiee ? 'ok' : 'a-controler';
+}
+
+async function deverrouille() {
+  const etat = etatSession();
+  if (etat !== 'a-controler') return etat === 'ok';
+  const { cle } = lire(sessionStorage, CLE_PROF);
+  if (!crypto.subtle || (await controle(cle)) !== empreinte().controle) {
+    verrouiller();
     return false;
   }
+  cleVerifiee = cle;
+  return true;
 }
 
 function verrouiller() {
+  cleVerifiee = null;
   try { sessionStorage.removeItem(CLE_PROF); } catch { /* rien à effacer */ }
+}
+
+// Toute action sur l'appareil repousse le verrouillage automatique.
+let derniereActivite = 0;
+function activite() {
+  if (Date.now() - derniereActivite < 15_000) return;
+  const s = lire(sessionStorage, CLE_PROF);
+  if (!s || etatSession() === null) return;
+  derniereActivite = Date.now();
+  ecrire(sessionStorage, CLE_PROF, { ...s, vu: derniereActivite });
+}
+for (const ev of ['pointerdown', 'keydown', 'wheel']) document.addEventListener(ev, activite, { capture: true, passive: true });
+
+// Après 30 min d'inactivité, l'espace se reverrouille même s'il est resté affiché.
+setInterval(() => {
+  if (!lire(sessionStorage, CLE_PROF) || etatSession() !== null) return;
+  if (location.hash.startsWith('#/prof')) window.dispatchEvent(new HashChangeEvent('hashchange'));
+}, 30_000);
+
+// Attente imposée après trop d'erreurs (gardée dans le localStorage pour résister au rechargement).
+function attenteRestante() {
+  const e = lire(localStorage, CLE_ESSAIS);
+  return e ? Math.max(0, (e.jusqua || 0) - Date.now()) : 0;
+}
+function noterEchec() {
+  const echecs = (lire(localStorage, CLE_ESSAIS)?.echecs || 0) + 1;
+  const jusqua = echecs >= ESSAIS_LIBRES ? Date.now() + Math.min(ATTENTE * 2 ** (echecs - ESSAIS_LIBRES), ATTENTE_MAX) : 0;
+  ecrire(localStorage, CLE_ESSAIS, { echecs, jusqua });
 }
 
 // Affiche la page demandée si l'espace est déverrouillé, sinon le formulaire de mot de passe.
 export function gardeProf($app, afficher) {
-  if (deverrouille()) return afficher();
+  if (etatSession() === 'ok') return afficher();
+  let fin = null;
+  let annule = false;
+  $app.innerHTML = '';
+  deverrouille().then((ok) => {
+    if (!annule) fin = ok ? afficher() : formulaireVerrou($app);
+  });
+  return () => {
+    annule = true;
+    fin?.();
+  };
+}
+
+function formulaireVerrou($app) {
   $app.innerHTML = `
     <section class="page prof-verrou">
       <div class="page-head">
@@ -55,25 +140,62 @@ export function gardeProf($app, afficher) {
     </section>`;
   const $form = $app.querySelector('#form-verrou');
   const $erreur = $app.querySelector('#erreur-mdp');
-  $app.querySelector('#mdp').focus();
+  const $mdp = $app.querySelector('#mdp');
+  const $bouton = $form.querySelector('button[type="submit"]');
+  let enCours = false;
+  const message = (texte) => {
+    $erreur.textContent = texte;
+    $erreur.hidden = !texte;
+  };
+
+  // Compte à rebours tant qu'il faut attendre après trop d'erreurs.
+  function majAttente() {
+    if (enCours) return;
+    const reste = attenteRestante();
+    $bouton.disabled = reste > 0;
+    if (reste > 0) {
+      const s = Math.ceil(reste / 1000);
+      message(`Trop d’erreurs. Réessaie dans ${s >= 60 ? `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')}` : `${s} s`}.`);
+    } else if ($erreur.dataset.attente) {
+      message('');
+    }
+    $erreur.dataset.attente = reste > 0 ? '1' : '';
+  }
+  const minuteur = setInterval(majAttente, 1000);
+  majAttente();
+
+  if (!empreinte()) {
+    message('Le mot de passe doit être recréé : double-clique sur « Mot-de-passe-prof.bat », puis envoie js/config.js sur GitHub.');
+    $bouton.disabled = true;
+    clearInterval(minuteur);
+  }
+  $mdp.focus();
+
   $form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const $mdp = $app.querySelector('#mdp');
-    if (!crypto.subtle) {
-      $erreur.textContent = 'Ce navigateur ne peut pas vérifier le mot de passe ici (il faut une adresse https://).';
-      $erreur.hidden = false;
-      return;
-    }
-    if ((await hacher($mdp.value)) !== APP.motDePasseProf) {
-      $erreur.textContent = 'Mot de passe incorrect.';
-      $erreur.hidden = false;
+    if (enCours || attenteRestante() > 0 || !empreinte()) return;
+    if (!crypto.subtle) return message('Ce navigateur ne peut pas vérifier le mot de passe ici (il faut une adresse https://).');
+    enCours = true;
+    $bouton.disabled = true;
+    $bouton.textContent = 'Vérification…';
+    const cle = await deriver($mdp.value, empreinte());
+    const bon = (await controle(cle)) === empreinte().controle;
+    enCours = false;
+    $bouton.textContent = 'Déverrouiller';
+    $bouton.disabled = false;
+    if (!bon) {
+      noterEchec();
+      message('Mot de passe incorrect.');
+      majAttente();
       $mdp.select();
       return;
     }
-    try { sessionStorage.setItem(CLE_PROF, APP.motDePasseProf); } catch { /* reste déverrouillé jusqu'au rechargement */ }
+    try { localStorage.removeItem(CLE_ESSAIS); } catch { /* rien à effacer */ }
+    ecrire(sessionStorage, CLE_PROF, { cle, vu: Date.now() });
+    cleVerifiee = cle;
     window.dispatchEvent(new HashChangeEvent('hashchange'));
   });
-  return null;
+  return () => clearInterval(minuteur);
 }
 
 /* ---------- Accueil de l'espace prof ---------- */
@@ -90,6 +212,14 @@ export function showProf($app) {
         <a class="card" href="#/prof/tournoi">
           <span class="card-icon" style="--c:#d97706"><img src="${piecePlateau('w', 'k')}" alt=""></span>
           <span class="card-text"><strong>Mode tournoi</strong><small>Inscris les élèves présents : appariements au système suisse, résultats et classement.</small></span>
+        </a>
+        <a class="card" href="#/prof/elo">
+          <span class="card-icon" style="--c:#16a34a"><img src="${piecePlateau('w', 'r')}" alt=""></span>
+          <span class="card-text"><strong>Liste des élèves Elo</strong><small>Le classement Elo du club : chacun démarre à 800 et gagne ou perd des points à chaque match ou tournoi.</small></span>
+        </a>
+        <a class="card" href="#/prof/elo/matchs">
+          <span class="card-icon" style="--c:#7c3aed"><img src="${piecePlateau('w', 'n')}" alt=""></span>
+          <span class="card-text"><strong>Matchs Elo</strong><small>Note qui a gagné contre qui : les Elo des deux élèves sont mis à jour aussitôt.</small></span>
         </a>
         <a class="card" href="#/prof/projection">
           <span class="card-icon" style="--c:#2563eb"><img src="${piecePlateau('w', 'q')}" alt=""></span>

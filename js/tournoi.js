@@ -2,6 +2,7 @@
 // Les prénoms des élèves restent sur l'appareil du prof (localStorage), jamais envoyés sur Internet.
 // Le prof peut tout effacer à la fin du tournoi.
 import { modal } from './modal.js';
+import { lireElo, ecrireElo, calculElo, eleveParNom, ajouterEleve, partieTournoi } from './elo.js';
 
 const CLE = 'echiquier-saint-andre:tournoi';
 const POINTS = { '1-0': [1, 0], '0-1': [0, 1], '1/2': [0.5, 0.5] };
@@ -11,7 +12,7 @@ const POINTS = { '1-0': [1, 0], '0-1': [0, 1], '1/2': [0.5, 0.5] };
 function lire() {
   try {
     const t = JSON.parse(localStorage.getItem(CLE));
-    if (t && Array.isArray(t.joueurs) && Array.isArray(t.rondes)) return t;
+    if (t && Array.isArray(t.joueurs) && Array.isArray(t.rondes)) return { id: 0, ...t };
   } catch { /* stockage indisponible ou illisible */ }
   return null;
 }
@@ -133,14 +134,22 @@ export function showTournoi($app) {
   }
 
   function ecranCreation() {
+    const { joueurs } = calculElo(lireElo());
+    const club = [...joueurs.values()].filter((j) => !j.retire).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
     return `
       <div class="panel tournoi-creation">
         <label for="t-nom">Nom du tournoi</label>
         <input id="t-nom" class="champ" value="Tournoi de l’AS – ${new Date().toLocaleDateString('fr-FR')}">
-        <label for="t-joueurs">Élèves présents (un prénom par ligne)</label>
+        ${club.length ? `
+          <span class="label-ligne"><b>Élèves du classement Elo présents</b> <button type="button" class="btn ghost mini-btn" id="btn-tous">Tout cocher</button></span>
+          <div class="t-club">${club.map((j) => `
+            <label><input type="checkbox" value="${j.id}"> ${echapper(j.nom)} <small>${Math.round(j.elo)}</small></label>`).join('')}
+          </div>` : ''}
+        <label for="t-joueurs">${club.length ? 'Autres élèves présents' : 'Élèves présents'} (un prénom par ligne)</label>
         <textarea id="t-joueurs" class="pgn" spellcheck="false" placeholder="Alice&#10;Bilal&#10;Chloé&#10;…"></textarea>
         <label for="t-rondes">Nombre de rondes</label>
         <input id="t-rondes" class="champ court" type="number" min="1" max="15" value="5">
+        <label class="case"><input type="checkbox" id="t-elo" checked> Compter les parties pour le classement Elo (les nouveaux prénoms y sont ajoutés à 800)</label>
         <p class="note">Système suisse : à chaque ronde, les élèves de même score se rencontrent, sans jouer deux fois le même adversaire. Avec un nombre impair, un élève est exempt et reçoit 1 point.</p>
         <p class="note">Les prénoms restent sur cet appareil uniquement. Tu pourras tout effacer à la fin.</p>
         <p class="erreur" id="t-erreur" hidden></p>
@@ -155,6 +164,8 @@ export function showTournoi($app) {
     const rondeFinie = !ronde || ronde.every((m) => m.r);
     const fini = rondeFinie && t.rondes.length >= t.nbRondes;
     const tableau = classement(t);
+    const elos = t.compteElo && calculElo(lireElo()).joueurs;
+    const elo = (j) => (elos && j.elo !== undefined && elos.has(j.elo) ? Math.round(elos.get(j.elo).elo) : '');
 
     const appariements = ronde ? `
       <h2 class="section-titre">Ronde ${t.rondes.length} / ${t.nbRondes}</h2>
@@ -182,7 +193,7 @@ export function showTournoi($app) {
       <h2 class="section-titre">${fini ? 'Classement final' : 'Classement'}</h2>
       <div class="table-defile">
         <table class="classement">
-          <thead><tr><th>#</th><th>Élève</th><th>Points</th><th title="Départage : somme des points des adversaires">Buchholz</th><th>V</th><th>N</th><th>D</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Élève</th><th>Points</th><th title="Départage : somme des points des adversaires">Buchholz</th><th>V</th><th>N</th><th>D</th>${elos ? '<th>Elo</th>' : ''}<th></th></tr></thead>
           <tbody>${tableau.map((j, i) => `
             <tr class="${j.absent ? 'absent' : ''}${fini && i < 3 ? ` podium-${i + 1}` : ''}">
               <td>${fini && i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1}</td>
@@ -190,6 +201,7 @@ export function showTournoi($app) {
               <td><strong>${demi(j.points)}</strong></td>
               <td>${demi(j.buchholz)}</td>
               <td>${j.v}</td><td>${j.n}</td><td>${j.d}</td>
+              ${elos ? `<td>${elo(j)}</td>` : ''}
               <td>${fini ? '' : `<button type="button" class="btn ghost mini-btn" data-absent="${j.id}">${j.absent ? 'Revient' : 'Absent'}</button>`}</td>
             </tr>`).join('')}
           </tbody>
@@ -206,19 +218,39 @@ export function showTournoi($app) {
   function brancher() {
     const sur = (id, f) => $app.querySelector(id)?.addEventListener('click', f);
 
+    sur('#btn-tous', () => {
+      const cases = [...$app.querySelectorAll('.t-club input')];
+      const cocher = cases.some((c) => !c.checked);
+      for (const c of cases) c.checked = cocher;
+    });
+
     sur('#btn-creer', () => {
-      const noms = [...new Set($app.querySelector('#t-joueurs').value.split('\n').map((n) => n.trim()).filter(Boolean))];
+      const elo = lireElo();
+      const compteElo = $app.querySelector('#t-elo').checked;
+      const coches = [...$app.querySelectorAll('.t-club input:checked')].map((c) => elo.eleves.find((e) => e.id === Number(c.value)));
+      const tapes = [...new Set($app.querySelector('#t-joueurs').value.split('\n').map((n) => n.trim()).filter(Boolean))]
+        .filter((n) => !coches.some((e) => e.nom.toLocaleLowerCase('fr-FR') === n.toLocaleLowerCase('fr-FR')));
       const nbRondes = Math.max(1, Math.min(15, Number($app.querySelector('#t-rondes').value) || 1));
       const $erreur = $app.querySelector('#t-erreur');
-      if (noms.length < 2) {
+      if (coches.length + tapes.length < 2) {
         $erreur.textContent = 'Il faut au moins deux élèves.';
         $erreur.hidden = false;
         return;
       }
+      // Un prénom tapé déjà présent dans le classement Elo y est relié ; sinon il y est ajouté.
+      const inscrits = [...coches.map((e) => ({ nom: e.nom, elo: e.id })), ...tapes.map((nom) => {
+        if (!compteElo) return { nom };
+        const e = eleveParNom(elo, nom) || ajouterEleve(elo, nom);
+        delete e.retire;
+        return { nom: e.nom, elo: e.id };
+      })];
+      if (compteElo) ecrireElo(elo);
       t = {
+        id: Date.now(),
         nom: $app.querySelector('#t-nom').value.trim() || 'Tournoi de l’AS',
         nbRondes,
-        joueurs: noms.map((nom, id) => ({ id, nom, absent: false })),
+        compteElo,
+        joueurs: inscrits.map((j, id) => ({ id, ...j, elo: compteElo ? j.elo : undefined, absent: false })),
         rondes: [],
       };
       sauver();
@@ -227,6 +259,9 @@ export function showTournoi($app) {
     $app.querySelectorAll('[data-res]').forEach((el) => el.addEventListener('click', () => {
       const m = t.rondes.at(-1)[Number(el.dataset.match)];
       m.r = m.r === el.dataset.res ? null : el.dataset.res;
+      // Chaque résultat saisi (ou corrigé) met aussitôt à jour le classement Elo.
+      const [jb, jn] = [m.b, m.n].map((id) => t.joueurs.find((j) => j.id === id));
+      if (jb.elo !== undefined && jn.elo !== undefined) partieTournoi(`${t.id}:${t.rondes.length - 1}:${m.b}-${m.n}`, jb.elo, jn.elo, m.r);
       sauver();
     }));
 
@@ -253,7 +288,15 @@ export function showTournoi($app) {
       });
       const nom = document.getElementById('t-nouveau')?.value.trim();
       if (r !== '1' || !nom) return;
-      t.joueurs.push({ id: Math.max(...t.joueurs.map((j) => j.id)) + 1, nom, absent: false });
+      const joueur = { id: Math.max(...t.joueurs.map((j) => j.id)) + 1, nom, absent: false };
+      if (t.compteElo) {
+        const elo = lireElo();
+        const e = eleveParNom(elo, nom) || ajouterEleve(elo, nom);
+        delete e.retire;
+        ecrireElo(elo);
+        Object.assign(joueur, { nom: e.nom, elo: e.id });
+      }
+      t.joueurs.push(joueur);
       sauver();
     });
 

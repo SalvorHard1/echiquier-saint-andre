@@ -12,7 +12,7 @@ const FICHIERS = [
   'manifest.webmanifest',
   'css/style.css',
   'js/analyse.js', 'js/app.js', 'js/board.js', 'js/bots.js', 'js/cadences.js', 'js/config.js',
-  'js/cours-data.js', 'js/cours.js', 'js/defi.js', 'js/engine.js', 'js/lecons-data.js', 'js/lecons.js',
+  'js/cours-data.js', 'js/cours.js', 'js/defi.js', 'js/elo.js', 'js/historique.js', 'js/engine.js', 'js/lecons-data.js', 'js/lecons.js',
   'js/modal.js', 'js/plateaux.js', 'js/problemes.js', 'js/skins.js', 'js/succes.js', 'js/version.js',
   'js/position.js', 'js/prof.js', 'js/qr.js', 'js/tournoi.js', 'js/vigilance.js',
   'vendor/chess/chess.js',

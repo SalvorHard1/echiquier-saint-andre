@@ -5,10 +5,11 @@ Application d'échecs de l'AS Échecs de Saint-André (de la 6ᵉ à la Terminal
 ## Respect de la vie privée (RGPD)
 
 - Aucun compte, aucun cookie, aucun traceur, aucune statistique de visite.
-- Rien n'est envoyé sur Internet : parties, analyses et problèmes restent en mémoire et s'effacent à la fermeture de l'onglet. La partie en cours est gardée dans le `sessionStorage` de l'onglet pour survivre à un rechargement de la page ; elle s'efface quand on quitte la partie ou qu'on ferme l'onglet.
+- Rien n'est envoyé sur Internet : analyses et problèmes restent en mémoire et s'effacent à la fermeture de l'onglet. Les 50 dernières parties (contre les bots et à deux, terminées ou quittées après 3 coups) sont gardées dans le `localStorage` de l'appareil de l'élève, sans nom, pour la page « Mes parties » (`js/historique.js`) ; l'élève peut les supprimer une à une ou tout effacer, et marquer d'une ⭐ celles qui ne doivent pas s'effacer. La partie en cours est gardée dans le `sessionStorage` de l'onglet pour survivre à un rechargement de la page ; elle s'efface quand on quitte la partie ou qu'on ferme l'onglet.
 - Seuls les **hauts faits** (avec les étoiles de « Pas à pas » et des « Cours », et les résultats du défi du jour) sont enregistrés, dans le stockage local du navigateur (`localStorage`), sur l'appareil de l'élève uniquement, sans nom ni identifiant. L'élève peut les exporter dans un fichier, les importer ou tout effacer depuis la page Hauts faits.
 - **Anti-triche** : la sauvegarde des hauts faits est signée, et un *journal de contrôle* (dates et types d'alertes, sans nom) ainsi que le PGN des victoires contre les bots forts sont gardés avec elle, sur l'appareil de l'élève. Ils ne partent nulle part : c'est l'élève qui donne son fichier exporté au prof.
 - Le mode tournoi (espace Prof-AS) garde les prénoms des élèves inscrits dans le `localStorage` de l'appareil du prof uniquement ; un bouton « Effacer le tournoi » les supprime.
+- Le classement Elo (espace Prof-AS) garde la liste des élèves du club et le journal de leurs parties dans le `localStorage` de l'appareil du prof uniquement, d'une séance à l'autre. Il s'exporte dans un fichier (sauvegarde, changement de tablette) et un bouton « Tout effacer » le supprime.
 - Une position partagée par QR code est écrite dans le lien lui-même (après le `#`) : elle ne passe par aucun serveur.
 - Aucune ressource externe : tout est hébergé dans ce dépôt (une Content-Security-Policy l'impose dans `index.html`).
 - Le moteur Stockfish tourne directement sur l'appareil de l'élève.
@@ -40,11 +41,14 @@ On peut aussi l'**installer** sur l'écran d'accueil, comme une vraie applicatio
 
 ## Espace Prof-AS
 
-Onglet **🔒 Prof-AS**, protégé par un mot de passe : mode tournoi (système suisse), mode projection (grand échiquier, éditeur de position, plein écran) et partage d'une position par QR code. Le déverrouillage dure jusqu'à la fermeture de l'onglet.
+Onglet **🔒 Prof-AS**, protégé par un mot de passe : mode tournoi (système suisse), mode projection (grand échiquier, éditeur de position, plein écran) et partage d'une position par QR code. Le déverrouillage dure jusqu'à la fermeture de l'onglet, ou jusqu'à **30 min sans toucher l'appareil** (verrouillage automatique, réglable dans `INACTIVITE`, `js/prof.js`).
 
-- **Changer le mot de passe** : double-cliquer sur **`Mot-de-passe-prof.bat`**, puis envoyer `js/config.js` sur GitHub. Seule l'empreinte (SHA-256) du mot de passe est enregistrée, jamais le mot de passe lui-même.
-- Ce verrou empêche les élèves d'y entrer par hasard, mais ce n'est **pas une vraie sécurité** : le site est public et tout se passe dans le navigateur. Choisis un mot de passe long, et ne mets rien de confidentiel dans cet espace.
+- **Changer le mot de passe** : double-cliquer sur **`Mot-de-passe-prof.bat`**, puis envoyer `js/config.js` sur GitHub. Seule une empreinte **PBKDF2** (sel aléatoire, 600 000 itérations) est enregistrée, jamais le mot de passe lui-même : chaque essai prend environ une seconde, ce qui freine fortement le cassage du mot de passe.
+- L'onglet déverrouillé garde une clé tirée du mot de passe : recopier l'empreinte de `config.js` dans le navigateur ne permet pas d'entrer.
+- Après **5 erreurs**, il faut attendre 30 s, puis deux fois plus à chaque nouvelle erreur (15 min au plus). Le nombre d'erreurs est gardé dans le `localStorage` de l'appareil (sans aucune autre donnée) et s'efface quand on entre le bon mot de passe.
+- Ce verrou empêche les élèves d'y entrer facilement, mais ce n'est **pas une vraie sécurité** : le site est public et tout se passe dans le navigateur (un élève qui sait programmer peut modifier le code dans son navigateur). Choisis un mot de passe long, et ne mets rien de confidentiel dans cet espace.
 - Les QR codes ne marchent que sur le site en ligne (pas sur `localhost`).
+- **Classement Elo** (`js/elo.js`) : onglet « Liste des élèves » (classement, progression du jour, plein écran pour l'annoncer) et onglet « Matchs Elo » (qui a gagné contre qui). Tout le monde démarre à 800 ; K = 40 pendant les 10 premières parties, puis 20 (`K_DEBUT`, `PARTIES_DEBUT`, `K`). Seul le journal des parties est enregistré : les Elo sont recalculés en le relisant, donc supprimer ou corriger une partie remet tout juste. Les résultats du mode tournoi y entrent aussi. Sur iPad, installer l'application sur l'écran d'accueil et exporter régulièrement une sauvegarde (Safari efface les données après 7 jours sans visite).
 
 ## Anti-triche
 
@@ -82,6 +86,8 @@ Numérotation conseillée : `0.11`, `0.12`… pour les ajouts, et `1.0` pour la 
 | `js/modal.js` | Fenêtres modales |
 | `js/prof.js` | Espace Prof-AS : mot de passe, mode projection, partage de position, L'Œil de Caïssa (dossiers anti-triche) |
 | `js/tournoi.js` | Mode tournoi : système suisse, résultats, classement |
+| `js/historique.js` | « Mes parties » : les 50 dernières parties de l'élève, à revoir et analyser |
+| `js/elo.js` | Classement Elo du club : liste des élèves, matchs, calcul des Elo |
 | `js/qr.js` | Générateur de QR codes (sans bibliothèque externe) |
 | `js/position.js` | Page d'une position partagée : la jouer contre un bot ou à deux |
 | `js/succes.js` | Hauts faits : objectifs, médailles, rangs, sauvegarde locale signée, journal de contrôle |
