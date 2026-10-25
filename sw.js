@@ -3,7 +3,7 @@
 //
 // VERSION : le même numéro que dans js/version.js. Le changer à chaque mise en ligne renouvelle la copie
 // sur les appareils des élèves. Un fichier ajouté au site doit aussi être ajouté à FICHIERS.
-const VERSION = '0.17';
+const VERSION = '0.18';
 const CACHE = `echiquier-${VERSION}`;
 
 // Jeux de pièces : cburnett à la racine de assets/pieces, les autres dans leur dossier (voir js/skins.js).
