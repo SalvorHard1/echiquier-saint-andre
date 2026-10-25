@@ -1,8 +1,16 @@
 // Numéro de version de l'application et journal des nouveautés.
 // À chaque mise en ligne : augmenter VERSION ici, mettre le MÊME numéro dans sw.js, et ajouter une entrée en tête de NOUVEAUTES.
-export const VERSION = '0.13';
+export const VERSION = '0.14';
 
 export const NOUVEAUTES = [
+  {
+    version: '0.14', date: '2026-10-25',
+    changements: [
+      'Mes parties : revois tes 50 dernières parties et analyse-les avec Stockfish',
+      'Espace Prof-AS : classement Elo du club (liste des élèves et matchs)',
+      'Mode tournoi : les résultats comptent pour le classement Elo',
+    ],
+  },
   {
     version: '0.13', date: '2026-10-24',
     changements: [
