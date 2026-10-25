@@ -3,7 +3,7 @@
 //
 // VERSION : le même numéro que dans js/version.js. Le changer à chaque mise en ligne renouvelle la copie
 // sur les appareils des élèves. Un fichier ajouté au site doit aussi être ajouté à FICHIERS.
-const VERSION = '0.13';
+const VERSION = '0.14';
 const CACHE = `echiquier-${VERSION}`;
 
 const FICHIERS = [
