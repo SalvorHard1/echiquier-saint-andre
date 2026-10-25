@@ -2,6 +2,7 @@
 // Dessins (comme sur chess.com) : clic droit + glisser = flèche, clic droit sur une case = surligner,
 // au doigt : appui long + glisser. Clic gauche (ou toucher bref) = tout effacer.
 import { piecePlateau } from './skins.js';
+import { animer, nettoyer, animationActive } from './animations.js';
 
 const FILES = 'abcdefgh';
 const APPUI_LONG = 450; // ms
@@ -32,6 +33,9 @@ export class Board {
     this.dessins = new Map(); // fen → { fleches: [{from, to, couleur}], cases: [{sq, couleur}] } (en mémoire seulement)
     this.dessin = null; // flèche en cours de tracé
     this.appui = null; // appui au doigt en attente (pour l'appui long)
+    this.pieces = null; // pièces affichées : case → 'wn', 'bp'… (pour savoir quelle pièce vient de bouger)
+    this.anim = null; // animation du dernier coup en cours : { coups, lache, debut, anim }
+    this.lache = null; // case où l'élève vient de lâcher une pièce à la main (pas de trajet à animer)
 
     el.classList.add('board');
     el.addEventListener('pointerdown', (e) => this.#down(e));
@@ -49,8 +53,70 @@ export class Board {
   set({ chess, orientation, movable, lastMove, fleches = [], badge = null, indice = null, marqueurs = [], cases = [] }) {
     const fen = chess.fen();
     if (!this.state || this.state.fen !== fen || movable !== this.state.movable) this.#clearSelection(false);
+    const nouvelle = !this.state || this.state.fen !== fen || this.state.orientation !== orientation;
+    const avant = this.pieces;
+    const lache = this.lache;
+    this.lache = null;
+    if (nouvelle) this.#finAnimation();
     this.state = { chess, orientation, movable, lastMove, fen, fleches, badge, indice, marqueurs, cases };
     this.render();
+    if (nouvelle && avant && lastMove) this.#animerCoup(avant, lastMove, lache === lastMove.to);
+  }
+
+  /* ---------- Animation du dernier coup ---------- */
+
+  // N'anime que si l'affichage passe vraiment de « pièce sur from » à « pièce sur to » : revenir en arrière
+  // dans une analyse ou charger une autre position ne rejoue rien.
+  #animerCoup(avant, { from, to }, lache) {
+    const p = avant.get(from);
+    const arrivee = this.pieces.get(to);
+    if (!p || this.pieces.has(from) || !arrivee || arrivee[0] !== p[0]) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const enPassant = p[1] === 'p' && from[0] !== to[0] && !avant.get(to);
+    const prise = avant.get(to) || (enPassant ? avant.get(to[0] + from[1]) : null);
+    const coups = [{ from, to, prise }];
+    // Roque : la tour bouge aussi.
+    if (p[1] === 'k' && Math.abs(FILES.indexOf(from[0]) - FILES.indexOf(to[0])) === 2) {
+      const petit = to[0] === 'g';
+      coups.push({ from: (petit ? 'h' : 'a') + to[1], to: (petit ? 'f' : 'd') + to[1], tour: true });
+    }
+    const anim = animationActive();
+    this.anim = { coups, lache, anim, debut: performance.now() };
+    this.el.classList.add('anim-en-cours');
+    this.#jouerAnimation(0);
+    this.anim.timer = setTimeout(() => this.#finAnimation(), anim.duree);
+  }
+
+  // ecoule > 0 : le plateau vient d'être redessiné pendant l'animation, on la reprend où elle en était.
+  #jouerAnimation(ecoule) {
+    const { coups, lache, anim } = this.anim;
+    const cases = [];
+    for (const { from, to, prise, tour } of coups) {
+      const dest = this.el.querySelector(`[data-sq="${to}"]`);
+      const origine = this.el.querySelector(`[data-sq="${from}"]`);
+      const piece = dest?.querySelector('.piece');
+      if (!piece) continue;
+      const [x1, y1] = this.#centre(from);
+      const [x2, y2] = this.#centre(to);
+      animer({
+        anim, dest, origine, piece, dx: x1 - x2, dy: y1 - y2,
+        victime: prise ? piecePlateau(prise[0], prise[1]) : null,
+        glisse: tour || !lache,
+        secouer: ecoule ? null : this.el,
+      });
+      cases.push(dest, origine);
+    }
+    if (ecoule) {
+      for (const c of cases) for (const a of c.getAnimations({ subtree: true })) a.currentTime = ecoule;
+    }
+  }
+
+  #finAnimation() {
+    if (!this.anim) return;
+    clearTimeout(this.anim.timer);
+    nettoyer(...this.anim.coups.flatMap(({ from, to }) => [this.el.querySelector(`[data-sq="${from}"]`), this.el.querySelector(`[data-sq="${to}"]`)]));
+    this.el.classList.remove('anim-secousse', 'anim-en-cours');
+    this.anim = null;
   }
 
   /* ---------- Dessins ---------- */
@@ -172,6 +238,7 @@ export class Board {
     }
 
     let html = '';
+    this.pieces = new Map();
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
         const r = orientation === 'w' ? row : 7 - row;
@@ -191,13 +258,17 @@ export class Board {
         if (marques.has(sq)) html += `<span class="marque" style="background:${COULEURS_DESSIN[marques.get(sq)]}"></span>`;
         if (col === 0) html += `<span class="coord rank">${8 - r}</span>`;
         if (row === 7) html += `<span class="coord file">${FILES[f]}</span>`;
-        if (piece) html += `<img class="piece" src="${piecePlateau(piece.color, piece.type)}" alt="" draggable="false">`;
+        if (piece) {
+          html += `<img class="piece" src="${piecePlateau(piece.color, piece.type)}" alt="" draggable="false">`;
+          this.pieces.set(sq, piece.color + piece.type);
+        }
         for (const m of this.state.marqueurs) if (m.sq === sq) html += `<span class="marqueur">${m.html}</span>`;
         if (badge?.sq === sq) html += `<span class="badge-case">${badge.html}</span>`;
         html += '</div>';
       }
     }
     this.el.innerHTML = html + this.#svg();
+    if (this.anim) this.#jouerAnimation(performance.now() - this.anim.debut);
   }
 
   #clearSelection(rerender = true) {
@@ -329,8 +400,10 @@ export class Board {
     this.drag = null;
     if (d.started) {
       const sq = this.#squareAt(e.clientX, e.clientY);
-      if (sq && this.targets.has(sq)) this.#play(d.from, sq);
-      else this.render();
+      if (sq && this.targets.has(sq)) {
+        this.lache = sq;
+        this.#play(d.from, sq);
+      } else this.render();
     } else if (d.wasSelected) {
       this.#clearSelection();
     } else {
@@ -354,6 +427,7 @@ export class Board {
 
   destroy() {
     clearTimeout(this.appui?.timer);
+    clearTimeout(this.anim?.timer);
     this.#removeGhost();
   }
 }

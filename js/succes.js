@@ -4,7 +4,7 @@
 import { modal } from './modal.js';
 import { LECONS, etoilesMax } from './lecons-data.js';
 import { COURS, etoilesMaxCours } from './cours-data.js';
-import { FAMILLES, apercu, skinDuHautFait, skinDuRang } from './skins.js';
+import { SILHOUETTES, apercu, skinDuHautFait, skinDuRang } from './skins.js';
 import { BOTS } from './bots.js';
 import { alerteTriche } from './vigilance.js';
 
@@ -642,7 +642,7 @@ export function insigneRang(r) {
     s += '<polygon points="33,13 35,-3 43,5 50,-9 57,5 65,-3 67,13" fill="url(#insigne-or)" stroke="#fff" stroke-opacity="0.75" stroke-width="2"/><circle cx="50" cy="-9" r="2.6" fill="#fff"/>';
   }
   const y = base === 'brillant' ? 46 : 50;
-  s += `<g transform="translate(33 ${y - 17}) scale(0.75)" fill="#fff" stroke="#1f2937" stroke-width="1.8" stroke-linejoin="round">${FAMILLES.staunton[r.piece]}</g>`;
+  s += `<g transform="translate(33 ${y - 17}) scale(0.75)" fill="#fff" stroke="#1f2937" stroke-width="1.8" stroke-linejoin="round">${SILHOUETTES[r.piece]}</g>`;
   return `<svg class="insigne" viewBox="-6 -16 112 112" role="img" aria-label="Rang ${r.nom}">
     <defs>
       <linearGradient id="${g}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${r.a}"/><stop offset="1" stop-color="${r.b}"/></linearGradient>

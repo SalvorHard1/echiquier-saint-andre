@@ -1,8 +1,17 @@
 // Numéro de version de l'application et journal des nouveautés.
 // À chaque mise en ligne : augmenter VERSION ici, mettre le MÊME numéro dans sw.js, et ajouter une entrée en tête de NOUVEAUTES.
-export const VERSION = '0.14';
+export const VERSION = '0.15';
 
 export const NOUVEAUTES = [
+  {
+    version: '0.15', date: '2026-10-25',
+    changements: [
+      'Nouvelles pièces : 15 jeux dessinés par des artistes (Merida, Staunty, Maestro, California, Horsey…)',
+      '9 nouveaux plateaux à débloquer : Tournoi, Érable, Cahier d’écolier, Tableau noir, Pixel rétro, Néon, Sakura, Océan, Confiserie',
+      'Plateaux en bois, marbre et métal brossé, pièces avec une ombre douce',
+      'Les pièces bougent sur l’échiquier, et 10 animations sont à débloquer avec les hauts faits : Saut 8-bit, Arcade, Capsule, Turbo, Blocs, Carte de duel, K.O., Portail, Glitch…',
+    ],
+  },
   {
     version: '0.14', date: '2026-10-25',
     changements: [
