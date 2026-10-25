@@ -3,7 +3,7 @@
 //
 // VERSION : le même numéro que dans js/version.js. Le changer à chaque mise en ligne renouvelle la copie
 // sur les appareils des élèves. Un fichier ajouté au site doit aussi être ajouté à FICHIERS.
-const VERSION = '0.15';
+const VERSION = '0.16';
 const CACHE = `echiquier-${VERSION}`;
 
 // Jeux de pièces : cburnett à la racine de assets/pieces, les autres dans leur dossier (voir js/skins.js).
@@ -18,7 +18,7 @@ const FICHIERS = [
   'css/style.css',
   'js/analyse.js', 'js/animations.js', 'js/app.js', 'js/board.js', 'js/bots.js', 'js/cadences.js', 'js/config.js',
   'js/cours-data.js', 'js/cours.js', 'js/defi.js', 'js/elo.js', 'js/historique.js', 'js/engine.js', 'js/lecons-data.js', 'js/lecons.js',
-  'js/modal.js', 'js/plateaux.js', 'js/problemes.js', 'js/skins.js', 'js/succes.js', 'js/version.js',
+  'js/modal.js', 'js/ouvertures-data.js', 'js/ouvertures.js', 'js/plateaux.js', 'js/problemes.js', 'js/skins.js', 'js/succes.js', 'js/version.js',
   'js/position.js', 'js/prof.js', 'js/qr.js', 'js/tournoi.js', 'js/vigilance.js',
   'vendor/chess/chess.js',
   'vendor/stockfish/stockfish-17.1-lite-single-03e3232.js',
